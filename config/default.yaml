@@ -1,0 +1,67 @@
+# ── PostgreSQL ──────────────────────────────────────────────
+postgres:
+  host: "${oc.env:PG_HOST,localhost}"
+  port: "${oc.env:PG_PORT,5432}"
+  database: "${oc.env:PG_DATABASE,rag_ocpp}"
+  user: "${oc.env:PG_USER,rag}"
+  password: "${oc.env:PG_PASSWORD,rag_dev}"
+  min_connections: 4
+  max_connections: 20
+
+# ── DeepSeek API ───────────────────────────────────────────
+deepseek:
+  api_key: "${oc.env:DEEPSEEK_API_KEY,}"
+  base_url: "${oc.env:DEEPSEEK_BASE_URL,https://api.deepseek.com/v1}"
+  model: "deepseek-chat"
+  temperature: 0.1
+  max_tokens: 4096
+
+# ── Embedding model ────────────────────────────────────────
+embedding:
+  model_name: "BAAI/bge-base-en-v1.5"
+  device: "cuda"          # "cuda", "cpu", or "mps"
+  dims: 768
+  batch_size: 32
+  normalize: true
+  query_prefix: "Represent this sentence for searching relevant passages: "
+
+# ── Reranker model ─────────────────────────────────────────
+reranker:
+  model_name: "BAAI/bge-reranker-base"
+  device: "cuda"
+  max_length: 512
+  batch_size: 16
+
+# ── Chunking ───────────────────────────────────────────────
+chunking:
+  spec:
+    strategy: "sdpm"
+    chunk_size: 512
+    chunk_overlap: 64
+    min_sentences_per_chunk: 3
+    threshold: 0.5
+  test_suite:
+    strategy: "sentence"
+    chunk_size: 256
+    chunk_overlap: 32
+  fallback:
+    strategy: "recursive"
+    chunk_size: 1024
+    chunk_overlap: 128
+
+# ── Retrieval ──────────────────────────────────────────────
+retrieval:
+  vector_top_k: 20
+  keyword_top_k: 10
+  graph_top_k: 10
+  fusion_k: 60
+  final_top_k: 5
+  # Weight for each strategy in weighted fusion (0.0 — 1.0, unused in RRF)
+  weights:
+    vector: 0.5
+    keyword: 0.3
+    graph: 0.2
+
+# ── Logging ────────────────────────────────────────────────
+logging:
+  level: "${oc.env:LOG_LEVEL,INFO}"
