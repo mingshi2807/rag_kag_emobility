@@ -4,9 +4,9 @@ services:
     container_name: rag-ocpp-pg
     shm_size: 2gb
     environment:
-      POSTGRES_DB: ${PG_DATABASE:-rag_ocpp}
-      POSTGRES_USER: ${PG_USER:-rag}
-      POSTGRES_PASSWORD: ${PG_PASSWORD:-rag_dev}
+      POSTGRES_DB: ${PG_DATABASE:-rag_kag}
+      POSTGRES_USER: ${PG_USER:-rag_kag}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-rag_kag}
     ports:
       - "${PG_PORT:-5432}:5432"
     volumes:

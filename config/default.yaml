@@ -2,9 +2,9 @@
 postgres:
   host: "${oc.env:PG_HOST,localhost}"
   port: "${oc.env:PG_PORT,5432}"
-  database: "${oc.env:PG_DATABASE,rag_ocpp}"
-  user: "${oc.env:PG_USER,rag}"
-  password: "${oc.env:PG_PASSWORD,rag_dev}"
+  database: "${oc.env:PG_DATABASE,rag_kag}"
+  user: "${oc.env:PG_USER,rag_kag}"
+  password: "${oc.env:PG_PASSWORD,rag_kag}"
   min_connections: 4
   max_connections: 20
 

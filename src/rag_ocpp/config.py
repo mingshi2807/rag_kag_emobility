@@ -13,9 +13,9 @@ from omegaconf import OmegaConf
 class PostgresConfig:
     host: str = "localhost"
     port: int = 5432
-    database: str = "rag_ocpp"
-    user: str = "rag"
-    password: str = "rag_dev"
+    database: str = "rag_kag"
+    user: str = "rag_kag"
+    password: str = "rag_kag"
     min_connections: int = 4
     max_connections: int = 20
 
