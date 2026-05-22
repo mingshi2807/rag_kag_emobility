@@ -39,7 +39,7 @@ class DeepSeekConfig:
 @dataclass
 class EmbeddingConfig:
     model_name: str = "BAAI/bge-base-en-v1.5"
-    device: str = "cuda"
+    device: str = "cpu"
     dims: int = 768
     batch_size: int = 32
     normalize: bool = True
@@ -49,7 +49,7 @@ class EmbeddingConfig:
 @dataclass
 class RerankerConfig:
     model_name: str = "BAAI/bge-reranker-base"
-    device: str = "cuda"
+    device: str = "cpu"
     max_length: int = 512
     batch_size: int = 16
 

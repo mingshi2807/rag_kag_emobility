@@ -19,7 +19,7 @@ deepseek:
 # ── Embedding model ────────────────────────────────────────
 embedding:
   model_name: "BAAI/bge-base-en-v1.5"
-  device: "cuda"          # "cuda", "cpu", or "mps"
+  device: "cpu"           # "cuda", "cpu", or "mps"
   dims: 768
   batch_size: 32
   normalize: true
@@ -28,7 +28,7 @@ embedding:
 # ── Reranker model ─────────────────────────────────────────
 reranker:
   model_name: "BAAI/bge-reranker-base"
-  device: "cuda"
+  device: "cpu"
   max_length: 512
   batch_size: 16
 
