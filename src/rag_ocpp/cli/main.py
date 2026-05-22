@@ -1,4 +1,4 @@
-"""CLI entry point — typer app with ingest, query subcommands."""
+"""CLI entry point — typer app with ingest, query, eval commands."""
 
 import typer
 
@@ -8,13 +8,13 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-from rag_ocpp.cli.ingest import ingest_app
-from rag_ocpp.cli.query import query_app
-from rag_ocpp.cli.eval import eval_app
+from rag_ocpp.cli.ingest import ingest_command
+from rag_ocpp.cli.query import query_command
+from rag_ocpp.cli.eval import eval_retrieval
 
-app.add_typer(ingest_app, name="ingest", help="Ingest documents into the knowledge base")
-app.add_typer(query_app, name="query", help="Query the knowledge base")
-app.add_typer(eval_app, name="eval", help="Evaluate retrieval quality")
+app.command(name="ingest")(ingest_command)
+app.command(name="query")(query_command)
+app.command(name="eval")(eval_retrieval)
 
 if __name__ == "__main__":
     app()

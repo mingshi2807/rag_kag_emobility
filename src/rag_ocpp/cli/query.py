@@ -15,11 +15,9 @@ from rag_ocpp.generation.client import DeepSeekClient
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 
-query_app = typer.Typer(no_args_is_help=True)
 
 
-@query_app.command()
-def query(
+def query_command(
     query_text: str = typer.Argument(..., help="Your question about OCPP 2.1"),
     top_k: int = typer.Option(5, "--top-k", "-k"),
     stream: bool = typer.Option(False, "--stream", "-s"),

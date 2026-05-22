@@ -17,10 +17,6 @@ from rag_ocpp.eval.metrics import EvalQuery, evaluate
 from rag_ocpp.retrieval.hybrid import HybridRetriever
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 
-eval_app = typer.Typer(no_args_is_help=True)
-
-
-@eval_app.command()
 def eval_retrieval(
     queries_path: str = typer.Argument(..., help="queries.jsonl"),
     top_k: int = typer.Option(10, "--top-k", "-k"),
