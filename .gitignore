@@ -10,6 +10,9 @@ venv/
 # Environment
 .env
 
+# Temp notes
+note_tmp.txt
+
 # Private data (documents to ingest)
 data/
 
