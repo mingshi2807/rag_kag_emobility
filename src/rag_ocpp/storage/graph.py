@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
 import asyncpg
+
+
+def _json(v: Any) -> str | None:
+    """Convert list/dict to JSON string for PostgreSQL JSONB columns."""
+    if v is None:
+        return None
+    return json.dumps(v)
 
 
 # ── Data types ────────────────────────────────────────────
@@ -107,7 +115,7 @@ class GraphStore:
                 properties = COALESCE(EXCLUDED.properties, entities.properties)
             RETURNING id
             """,
-            type_id, protocol_id, name, description, aliases, properties,
+            type_id, protocol_id, name, description, _json(aliases), _json(properties),
         )
         assert row is not None
         return row["id"]
@@ -289,7 +297,7 @@ class GraphStore:
             ON CONFLICT (source_id, target_id, rel_type) DO NOTHING
             RETURNING id
             """,
-            source_id, target_id, rel_type, properties,
+            source_id, target_id, rel_type, _json(properties),
         )
         if row is not None:
             return row["id"]
@@ -591,7 +599,7 @@ class GraphStore:
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id
             """,
-            query_text, top_chunks, top_scores, strategy, latency_ms,
+            query_text, _json(top_chunks), _json(top_scores), strategy, latency_ms,
         )
         assert row is not None
         return row["id"]
