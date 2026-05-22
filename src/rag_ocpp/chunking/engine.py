@@ -65,7 +65,6 @@ class ChunkingEngine:
         )
         self._recursive = RecursiveChunker(
             chunk_size=config.fallback.chunk_size,
-            chunk_overlap=config.fallback.chunk_overlap,
         )
 
     def chunk(self, doc: ParsedDocument, doc_type: str) -> list[Chunk]:
