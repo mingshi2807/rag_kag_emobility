@@ -10,6 +10,13 @@ from uuid import UUID
 import asyncpg
 
 
+def _vec(embedding: list[float] | None) -> str | None:
+    """Convert list[float] to pgvector string: '[0.1,0.2,...]'."""
+    if embedding is None:
+        return None
+    return "[" + ",".join(str(x) for x in embedding) + "]"
+
+
 # ── Data types ────────────────────────────────────────────
 
 @dataclass
@@ -133,7 +140,7 @@ class VectorStore:
                         c.chunk_index,
                         c.content,
                         c.content_hash,
-                        c.embedding,
+                        _vec(c.embedding),
                         c.strategy,
                         c.section_title,
                         c.page_start,
@@ -166,7 +173,7 @@ class VectorStore:
                 c.chunk_index,
                 c.content,
                 c.content_hash,
-                c.embedding,
+                _vec(c.embedding),
                 c.strategy,
                 c.section_title,
                 c.page_start,
@@ -194,7 +201,7 @@ class VectorStore:
         async with self._pool.acquire() as conn:
             count = await conn.executemany(
                 "UPDATE chunks SET embedding = $2 WHERE id = $1",
-                [(uid, emb) for uid, emb in updates],
+                [(uid, _vec(emb)) for uid, emb in updates],
             )
         return count
 
@@ -215,7 +222,7 @@ class VectorStore:
         We compute *similarity* = 1 - distance so higher is better.
         """
         clauses = ["TRUE"]
-        params: list[Any] = [query_embedding, ef_search, top_k]
+        params: list[Any] = [_vec(query_embedding), ef_search, top_k]
 
         if protocol_id is not None:
             clauses.append(
