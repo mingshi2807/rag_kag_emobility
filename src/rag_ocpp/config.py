@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from omegaconf import OmegaConf
 
 
@@ -122,6 +123,10 @@ def load_config(config_path: str | Path | None = None) -> AppConfig:
         3. Environment variables (prefixed, e.g. PG_HOST, DEEPSEEK_API_KEY)
     """
     global _config
+
+    # Load .env file into os.environ so OmegaConf oc.env resolver can pick it up
+    _dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
+    load_dotenv(_dotenv_path)
 
     base = Path(__file__).resolve().parent.parent.parent / "config" / "default.yaml"
     cfg = OmegaConf.load(base)
