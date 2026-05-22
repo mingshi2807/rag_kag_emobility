@@ -39,6 +39,8 @@ dependencies = [
   # Utilities
   "tqdm>=4.67.0",
   "numpy>=2.0.0",
+  # MCP server
+  "mcp>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -63,3 +65,4 @@ testpaths = ["tests"]
 
 [project.scripts]
 rag = "rag_ocpp.cli.main:app"
+rag-mcp = "rag_ocpp.mcp.server:main"
