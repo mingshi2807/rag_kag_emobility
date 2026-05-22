@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any
 
-from chonkie import RecursiveChunker, SDPMChunker, SentenceChunker
+from chonkie import RecursiveChunker, SemanticChunker, SentenceChunker
 
 from rag_ocpp.config import ChunkingConfig, get_config
 from rag_ocpp.ingestion.metadata import OCPPMetadataExtractor
@@ -35,15 +35,15 @@ class ChunkingEngine:
     """Chunk documents using chonkie with strategy dispatch.
 
     Strategies by document type:
-        spec        → SDPMChunker   (semantic boundary aware, 512/64 tokens)
+        spec        → SemanticChunker (semantic boundary aware, 512 tokens)
         test_suite  → SentenceChunker (fine-grained, 256/32 tokens)
         json_config → SentenceChunker
         fallback    → RecursiveChunker (character-based, 1024/128)
 
-    Why SDPM for OCPP specs:
+    Why SemanticChunker for OCPP specs:
         OCPP specifications are hierarchically structured
         (Part -> Section -> Subsection -> Paragraph).
-        SDPM's threshold-based semantic merging preserves these boundaries —
+        SemanticChunker's threshold-based merging preserves these boundaries —
         chunks won't span across section breaks when semantic similarity
         drops at topic boundaries.
     """
@@ -53,9 +53,9 @@ class ChunkingEngine:
             config = get_config().chunking
         self._config = config
 
-        self._sdpm = SDPMChunker(
+        self._semantic = SemanticChunker(
+            embedding_model="minishlab/potion-base-32M",
             chunk_size=config.spec.chunk_size,
-            chunk_overlap=config.spec.chunk_overlap,
             min_sentences_per_chunk=config.spec.min_sentences_per_chunk,
             threshold=config.spec.threshold,
         )
@@ -143,10 +143,10 @@ class ChunkingEngine:
 
     def _select_strategy(
         self, doc_type: str
-    ) -> SDPMChunker | SentenceChunker | RecursiveChunker:
+    ) -> SemanticChunker | SentenceChunker | RecursiveChunker:
         match doc_type:
             case "spec":
-                return self._sdpm
+                return self._semantic
             case "test_suite":
                 return self._sentence
             case "json_config":

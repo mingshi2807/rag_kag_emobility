@@ -15,9 +15,9 @@ def _doc(text: str) -> ParsedDocument:
 
 
 class TestChunking:
-    def test_spec_uses_sdpm(self):
+    def test_spec_uses_semantic(self):
         chunks = ChunkingEngine().chunk(_doc("A " * 600), "spec")
-        assert len(chunks) > 0 and all(c.strategy == "sdpm" for c in chunks)
+        assert len(chunks) > 0 and all(c.strategy == "semantic" for c in chunks)
 
     def test_hash_is_sha256_hex(self):
         chunks = ChunkingEngine().chunk(_doc("A" * 2000), "spec")

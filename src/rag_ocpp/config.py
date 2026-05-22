@@ -56,7 +56,7 @@ class RerankerConfig:
 
 @dataclass
 class ChunkingStrategy:
-    strategy: str = "sdpm"
+    strategy: str = "semantic"
     chunk_size: int = 512
     chunk_overlap: int = 64
     min_sentences_per_chunk: int = 3

@@ -35,7 +35,7 @@ reranker:
 # ── Chunking ───────────────────────────────────────────────
 chunking:
   spec:
-    strategy: "sdpm"
+    strategy: "semantic"
     chunk_size: 512
     chunk_overlap: 64
     min_sentences_per_chunk: 3
