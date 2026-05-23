@@ -45,9 +45,14 @@ async def pool(postgres_container):
     schema_path = Path(__file__).parent.parent / "src" / "rag_ocpp" / "storage" / "schema.sql"
     if schema_path.exists():
         async with pool.acquire() as conn:
-            exists = await conn.fetchval("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name='protocols')")
-            if not exists:
-                await conn.execute(schema_path.read_text())
+            # asyncpg only runs one statement per execute(); split by semicolon
+            for stmt in schema_path.read_text().split(";"):
+                stmt = stmt.strip()
+                if stmt and not stmt.startswith("--"):
+                    try:
+                        await conn.execute(stmt)
+                    except (asyncpg.exceptions.DuplicateTableError, asyncpg.exceptions.DuplicateObjectError):
+                        pass  # already exists from a previous run
 
     yield pool
     await pool.close()
