@@ -24,18 +24,6 @@ def postgres_container():
         username="test", password="test", dbname="test_rag",
     )
     container.start()
-
-    schema_path = Path(__file__).parent.parent / "src" / "rag_ocpp" / "storage" / "schema.sql"
-    if schema_path.exists():
-        import subprocess
-        host = container.get_container_host_ip()
-        port = container.get_exposed_port(5432)
-        subprocess.run(
-            ["psql", f"postgresql://test:test@{host}:{port}/test_rag",
-             "-f", str(schema_path)],
-            check=True, capture_output=True,
-        )
-
     yield container
     container.stop()
 
@@ -53,6 +41,12 @@ async def pool(postgres_container):
     port = postgres_container.get_exposed_port(5432)
     dsn = f"postgresql://test:test@{host}:{port}/test_rag"
     pool = await asyncpg.create_pool(dsn=dsn, min_size=1, max_size=5)
+
+    schema_path = Path(__file__).parent.parent / "src" / "rag_ocpp" / "storage" / "schema.sql"
+    if schema_path.exists():
+        async with pool.acquire() as conn:
+            await conn.execute(schema_path.read_text())
+
     yield pool
     await pool.close()
 
