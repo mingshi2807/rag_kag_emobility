@@ -42,17 +42,14 @@ async def pool(postgres_container):
     dsn = f"postgresql://test:test@{host}:{port}/test_rag"
     pool = await asyncpg.create_pool(dsn=dsn, min_size=1, max_size=5)
 
-    schema_path = Path(__file__).parent.parent / "src" / "rag_ocpp" / "storage" / "schema.sql"
-    if schema_path.exists():
-        async with pool.acquire() as conn:
-            # asyncpg only runs one statement per execute(); split by semicolon
-            for stmt in schema_path.read_text().split(";"):
-                stmt = stmt.strip()
-                if stmt and not stmt.startswith("--"):
-                    try:
-                        await conn.execute(stmt)
-                    except (asyncpg.exceptions.DuplicateTableError, asyncpg.exceptions.DuplicateObjectError):
-                        pass  # already exists from a previous run
+    # Apply schema exactly once per session
+    import sys
+    if "pytest" in sys.modules and not hasattr(pytest, "_schema_applied"):
+        schema_path = Path(__file__).parent.parent / "src" / "rag_ocpp" / "storage" / "schema.sql"
+        if schema_path.exists():
+            async with pool.acquire() as conn:
+                await conn.execute(schema_path.read_text())
+        pytest._schema_applied = True
 
     yield pool
     await pool.close()
