@@ -14,6 +14,11 @@ from rag_ocpp.storage.vector import VectorStore
 @pytest.fixture(scope="session")
 def postgres_container():
     """Session-scoped pgvector PostgreSQL container."""
+    import subprocess
+    try:
+        subprocess.run(["docker", "info"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pytest.skip("Docker not available")
     container = PostgresContainer(
         image="pgvector/pgvector:pg16",
         username="test", password="test", dbname="test_rag",

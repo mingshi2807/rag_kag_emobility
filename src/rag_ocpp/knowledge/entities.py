@@ -132,7 +132,7 @@ _ERROR_CODES = [
     "FormatViolation", "RpcFrameworkError",
 ]
 
-_TEST_CASE_PATTERN = r"\bTC_[A-Z]{2}_\d{2,3}\b"
+_TEST_CASE_PATTERN = r"\b(?P<name>TC_[A-Z]{2}_\d{2,3})\b"
 
 
 # ── Compiled patterns ────────────────────────────────────
