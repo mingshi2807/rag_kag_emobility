@@ -240,37 +240,30 @@ class EntityExtractor:
 # ── JSON repair helpers ───────────────────────────────────
 
 def _repair_json(text: str) -> str:
-    """Close unclosed braces and brackets to make partial JSON valid."""
-    # Count open/close
-    open_braces = text.count("{") - text.count("}")
-    open_brackets = text.count("[") - text.count("]")
-
-    # Close from inside out
+    """Close unclosed braces/brackets + strip trailing commas."""
     result = text.rstrip()
     if result.endswith(","):
-        result = result[:-1]  # strip trailing comma
+        result = result[:-1]
+    open_braces = result.count("{") - result.count("}")
+    open_brackets = result.count("[") - result.count("]")
     result += "]" * open_brackets
     result += "}" * open_braces
     return result
 
 
-def _extract_partial_json(text: str) -> dict | None:
-    """Regex-extract entities array from truncated JSON."""
+def _extract_entities_from_text(text: str) -> list[dict]:
+    """Brute-force extract entity objects from JSON-ish text."""
     import re
-    # Try to find "entities": [...] even if JSON is incomplete
-    m = re.search(r'"entities"\s*:\s*\[(.*)$', text, re.DOTALL)
-    if not m:
+    entities = []
+    pattern = re.compile(r'\{\s*"type"\s*:\s*"([^"]+)"\s*,\s*"name"\s*:\s*"([^"]+)"\s*\}')
+    for m in pattern.finditer(text):
+        entities.append({"type": m.group(1), "name": m.group(2)})
+    return entities
+
+
+def _extract_partial_json(text: str) -> dict | None:
+    """Extract entities from truncated JSON via regex."""
+    entities = _extract_entities_from_text(text)
+    if not entities:
         return None
-
-    entities_str = "[" + m.group(1)
-    # Close brackets
-    entities_str = _repair_json(entities_str)
-
-    try:
-        entities = json.loads(entities_str)
-        if isinstance(entities, list):
-            return {"entities": entities, "relations": []}
-    except json.JSONDecodeError:
-        pass
-
-    return None
+    return {"entities": entities, "relations": []}
