@@ -116,7 +116,7 @@ class EntityExtractor:
                         {"role": "user", "content": text[:8000]},
                     ],
                     "temperature": 0.0,
-                    "max_tokens": 2048,
+                    "max_tokens": 4096,
                 },
             )
             data = response.json()
@@ -193,8 +193,16 @@ class EntityExtractor:
         try:
             data = json.loads(content)
         except json.JSONDecodeError:
-            logger.warning("LLM returned invalid JSON: %.200s", content)
-            return [], []
+            # Try repair: close unclosed braces/brackets
+            repaired = _repair_json(content)
+            try:
+                data = json.loads(repaired)
+            except json.JSONDecodeError:
+                # Last resort: regex-extract entities array
+                data = _extract_partial_json(content)
+                if not data:
+                    logger.warning("LLM returned invalid JSON: %.200s", content)
+                    return [], []
 
         type_map = {
             "command": 1, "datatype": 2, "component": 3,
@@ -227,3 +235,42 @@ class EntityExtractor:
         ]
 
         return entities, relations
+
+
+# ── JSON repair helpers ───────────────────────────────────
+
+def _repair_json(text: str) -> str:
+    """Close unclosed braces and brackets to make partial JSON valid."""
+    # Count open/close
+    open_braces = text.count("{") - text.count("}")
+    open_brackets = text.count("[") - text.count("]")
+
+    # Close from inside out
+    result = text.rstrip()
+    if result.endswith(","):
+        result = result[:-1]  # strip trailing comma
+    result += "]" * open_brackets
+    result += "}" * open_braces
+    return result
+
+
+def _extract_partial_json(text: str) -> dict | None:
+    """Regex-extract entities array from truncated JSON."""
+    import re
+    # Try to find "entities": [...] even if JSON is incomplete
+    m = re.search(r'"entities"\s*:\s*\[(.*)$', text, re.DOTALL)
+    if not m:
+        return None
+
+    entities_str = "[" + m.group(1)
+    # Close brackets
+    entities_str = _repair_json(entities_str)
+
+    try:
+        entities = json.loads(entities_str)
+        if isinstance(entities, list):
+            return {"entities": entities, "relations": []}
+    except json.JSONDecodeError:
+        pass
+
+    return None
