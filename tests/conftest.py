@@ -92,6 +92,10 @@ async def pool(postgres_container):
             entity_id UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
             confidence REAL DEFAULT 1.0,
             PRIMARY KEY (chunk_id, entity_id))""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS query_log (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            query_text TEXT NOT NULL, top_chunks JSONB, top_scores JSONB,
+            strategy TEXT, latency_ms INT, created_at TIMESTAMPTZ DEFAULT now())""")
 
     yield pool
     await pool.close()
