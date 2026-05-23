@@ -10,11 +10,22 @@ from uuid import UUID
 import asyncpg
 
 
+import re
+
+
 def _vec(embedding: list[float] | None) -> str | None:
     """Convert list[float] to pgvector string: '[0.1,0.2,...]'."""
     if embedding is None:
         return None
     return "[" + ",".join(str(x) for x in embedding) + "]"
+
+
+def _prepare_tsquery(text: str) -> str:
+    """Split camelCase/PascalCase for PostgreSQL full-text search.
+    'VoltWattCurve' → 'Volt Watt Curve' so tsquery tokenizes correctly.
+    """
+    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+    return text.replace("_", " ")
 
 
 # ── Data types ────────────────────────────────────────────
@@ -283,7 +294,7 @@ class VectorStore:
         into a tsquery, then ``ts_rank`` for scoring.
         """
         clauses = ["c.tsv @@ plainto_tsquery('english', $1)"]
-        params: list[Any] = [query, top_k]
+        params: list[Any] = [_prepare_tsquery(query), top_k]
 
         if protocol_id is not None:
             clauses.append(
