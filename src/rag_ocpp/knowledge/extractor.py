@@ -141,7 +141,7 @@ class EntityExtractor:
         entities = self.extract_regex(text)
         relations: list[RelationMention] = []
 
-        if self._enable_llm and self._needs_llm_pass(entities, text):
+        if self._enable_llm and (force or self._needs_llm_pass(entities, text)):
             try:
                 llm_entities, llm_relations = await self.extract_llm(text)
                 entities = self._merge_entities(entities, llm_entities)
