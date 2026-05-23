@@ -46,6 +46,7 @@ async def pool(postgres_container):
     async with pool.acquire() as conn:
         await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+        await conn.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
         await conn.execute("""CREATE TABLE IF NOT EXISTS protocols (
             id SMALLINT PRIMARY KEY, name TEXT UNIQUE NOT NULL,
             full_name TEXT NOT NULL, namespace TEXT NOT NULL)""")
