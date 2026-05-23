@@ -41,8 +41,13 @@ class CrossEncoderReranker:
         if self._model is not None:
             return
         logger.info("Loading reranker: %s on %s", self._model_name, self._device)
-        self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
-        self._model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
+        try:
+            self._tokenizer = AutoTokenizer.from_pretrained(self._model_name, local_files_only=True)
+            self._model = AutoModelForSequenceClassification.from_pretrained(self._model_name, local_files_only=True)
+        except (OSError, FileNotFoundError):
+            logger.info("Reranker not cached; downloading from HuggingFace...")
+            self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
+            self._model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
         self._model.to(self._device)
         self._model.eval()
         logger.info("Reranker loaded.")

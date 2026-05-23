@@ -74,11 +74,17 @@ class EmbeddingModel:
         cache_path = self._local_model_path()
         load_from = str(cache_path) if cache_path else self._model_name
 
-        self._model = SentenceTransformer(
-            load_from,
-            device=self._device,
-            trust_remote_code=True,
-        )
+        try:
+            self._model = SentenceTransformer(
+                load_from, device=self._device,
+                trust_remote_code=True, local_files_only=True,
+            )
+        except (OSError, FileNotFoundError):
+            logger.info("Model not cached; downloading from HuggingFace...")
+            self._model = SentenceTransformer(
+                load_from, device=self._device,
+                trust_remote_code=True,
+            )
 
         _ = self._model.encode(["warmup"], normalize_embeddings=self._normalize)
 
