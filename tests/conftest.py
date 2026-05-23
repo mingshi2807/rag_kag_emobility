@@ -45,7 +45,9 @@ async def pool(postgres_container):
     schema_path = Path(__file__).parent.parent / "src" / "rag_ocpp" / "storage" / "schema.sql"
     if schema_path.exists():
         async with pool.acquire() as conn:
-            await conn.execute(schema_path.read_text())
+            exists = await conn.fetchval("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name='protocols')")
+            if not exists:
+                await conn.execute(schema_path.read_text())
 
     yield pool
     await pool.close()
