@@ -35,11 +35,11 @@ reranker:
 # ── Chunking ───────────────────────────────────────────────
 chunking:
   spec:
-    strategy: "semantic"
-    chunk_size: 512
-    chunk_overlap: 64
+    strategy: "recursive"
+    chunk_size: 1024
+    chunk_overlap: 128
     min_sentences_per_chunk: 3
-    threshold: 0.7
+    threshold: 0.3
   test_suite:
     strategy: "sentence"
     chunk_size: 256
