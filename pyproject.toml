@@ -67,4 +67,4 @@ testpaths = ["tests"]
 
 [project.scripts]
 rag = "rag_ocpp.cli.main:app"
-rag-mcp = "rag_ocpp.mcp.server:main"
+rag-mcp = "rag_ocpp.mcp.server:main_cli"

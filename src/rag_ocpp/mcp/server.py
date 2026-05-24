@@ -137,3 +137,8 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+# Sync wrapper for console_scripts entry point
+def main_cli() -> None:
+    asyncio.run(main())
