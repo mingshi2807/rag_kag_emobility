@@ -1,20 +1,20 @@
-{"query":"What is a BootNotification in OCPP 2.1?","relevant":["51a6e442-d34b-45f6-bc91-0f571a420af5","8941dede-5319-44be-b074-1efa0a7ab485"]}
-{"query":"What fields are required in Authorize.req?","relevant":["d9635e67-1aac-4a27-8a85-52925c526ded"]}
-{"query":"How does the Heartbeat mechanism work?","relevant":["c256e15b-c255-4030-b8b6-979f20f0a4cd","3816b1fe-8ce5-4103-837d-4371192ebe0c"]}
-{"query":"What is a Volt-Watt curve?","relevant":["43743f02-5913-46c1-a77c-377393d60e20","e955f2ca-e9ce-4b8f-84f0-86fe91d363c7","39629125-f543-4d2c-9093-3f5f59f61d90"]}
-{"query":"Explain the Certificate Management functional block","relevant":["4a880da9-e1d9-4ce2-bd13-68e4fb773a0f","bc72a405-22ba-402f-b821-d9ca7440156e"]}
-{"query":"What is IdToken used for?","relevant":["0a33400c-5459-4f32-bf6f-d26e91bffc27","750f6304-97ab-40c9-b3b8-c06a5980ca9f"]}
-{"query":"Describe the SmartCharging functional block","relevant":["c21e8fdb-bc5f-45eb-843a-d261a75afee9","511a3f75-2aa1-4c59-b49a-63cc7272d4ea"]}
-{"query":"What is the difference between StartTransaction and TransactionEvent?","relevant":["749184f3-d12d-438d-8c0c-1f91167666cf","1cba138e-73b6-4882-a0d4-2ceea3afb843","d245ff62-2d6f-4c1f-915a-47a8f715b42b"]}
-{"query":"How does the FirmwareUpdate process work?","relevant":["13744982-1f32-4974-a928-e1526a9b3682","a636dd75-f965-4cef-bcea-93a9422c4803"]}
-{"query":"What security profiles exist in OCPP 2.1?","relevant":["85ec879d-aec9-4923-9731-f1f8c912ec64","beadd2d2-0487-42ca-b1ba-b757b2a788ac"]}
-{"query":"What is the MeterValues message used for?","relevant":["db420638-b517-420a-aa8a-275641a613cc","641a1633-d946-4667-99f8-8238146cdf88"]}
-{"query":"How are variables set and monitored using SetVariables and GetVariables?","relevant":["8941dede-5319-44be-b074-1efa0a7ab485","85ec6f77-51fc-4634-bce0-3d59e5596313"]}
-{"query":"What is the role of DataTransfer in OCPP?","relevant":["0614302f-a0d1-4dd3-a671-87ab1470ca2e","c9d3ee1a-0e94-438e-b5a7-f07ec166ddb2"]}
-{"query":"Describe the OCPP 2.1 connection lifecycle from boot to charging","relevant":["8941dede-5319-44be-b074-1efa0a7ab485","db420638-b517-420a-aa8a-275641a613cc"]}
-{"query":"What elliptic curve algorithms are used for OCPP security?","relevant":["36224af2-225f-4948-a49d-bfae45a82e22","4b6e3110-afe4-4311-ae4e-b381d8c22e48"]}
-{"query":"How does ChangeAvailability work?","relevant":["2e2e4dab-9697-413f-9ca0-b4bbfd67fd15","b0f9ec8d-37bf-4c42-a0ee-4144b477146c","88845682-5687-4bd5-b376-d246e8ca7204"]}
-{"query":"Explain the OCPP 2.1 V2X support features","relevant":["bf0a570e-d5e5-4908-8d6c-8c9733749358","6307934f-9458-4670-bcdf-cf0a7d3f25b4","eb564ec6-9d90-4a3d-bd31-790934eac610"]}
-{"query":"What is SignCertificate and when is it needed?","relevant":["818f3825-91f6-4f35-96a3-f086bdfdea85"]}
-{"query":"How does DER control work in OCPP 2.1?","relevant":["2c2b2649-3032-4fe2-afb5-10c92a631357","87b8e692-5db3-4359-afad-e753f0fb9d46","e955f2ca-e9ce-4b8f-84f0-86fe91d363c7"]}
-{"query":"What are the standardized OCPP variables for charging station configuration?","relevant":["85ec6f77-51fc-4634-bce0-3d59e5596313","8941dede-5319-44be-b074-1efa0a7ab485"]}
+{"query": "What is a BootNotification in OCPP 2.1?", "relevant": ["b2e5e7fb-b4e1-4f5e-a275-216fef150045"]}
+{"query": "What fields are required in Authorize.req?", "relevant": []}
+{"query": "How does the Heartbeat mechanism work?", "relevant": []}
+{"query": "What is a Volt-Watt curve?", "relevant": ["58c8d138-8c9d-4cf2-aed1-d82349340c94", "31483801-bbdc-45ab-8083-1ed3d9beed1c", "5eee5679-5afa-4591-8f8f-9877ffb268e0", "757644eb-e779-423e-b006-715e020cabab", "ef7cd369-eabb-483a-b55d-463468b0c8e4"]}
+{"query": "Explain the Certificate Management functional block", "relevant": []}
+{"query": "What is IdToken used for?", "relevant": ["886e06ad-c58a-473a-af81-ffdc7ab9528e", "dd9e3940-3836-4c2d-8242-7db11baf23a9", "00cec9f4-5430-4cae-a800-d0bbe1deef13"]}
+{"query": "Describe the SmartCharging functional block", "relevant": []}
+{"query": "What is the difference between StartTransaction and TransactionEvent?", "relevant": ["7c5cc34e-342f-45c8-81db-c0c7c2557370", "6a9a03ae-018e-4fe1-b32d-16e6410fd251", "54f79897-af59-44f7-a10d-e7fd306a28aa", "603a46e1-e4eb-426b-ad71-e92f10d10005"]}
+{"query": "How does the FirmwareUpdate process work?", "relevant": []}
+{"query": "What security profiles exist in OCPP 2.1?", "relevant": []}
+{"query": "What is the MeterValues message used for?", "relevant": ["90c773d4-eef8-48d5-9a1f-fe0a6fb44171", "0098a5d3-535b-491a-a081-61fc749b4f3b", "0a4b28f8-3abb-43b8-aef1-bd70814c973d", "7370b1e7-438e-4fc6-9f7c-dc337a6ecec2", "a97bc899-7809-48ad-ad05-6a33ded1a77d"]}
+{"query": "How are variables set and monitored using SetVariables and GetVariables?", "relevant": ["8f906c2c-417a-4e32-a554-433d5987fd88", "43f4740f-84fe-4a34-873f-f50c89cc009d", "5b628e09-f39e-40f3-b10f-150dbe5bd532", "b2f6c97a-624c-4591-8732-6dff67615917", "2a4c4da2-48ac-43b4-94b1-fecccac34126"]}
+{"query": "What is the role of DataTransfer in OCPP?", "relevant": []}
+{"query": "Describe the OCPP 2.1 connection lifecycle from boot to charging", "relevant": []}
+{"query": "What elliptic curve algorithms are used for OCPP security?", "relevant": []}
+{"query": "How does ChangeAvailability work?", "relevant": []}
+{"query": "Explain the OCPP 2.1 V2X support features", "relevant": []}
+{"query": "What is SignCertificate and when is it needed?", "relevant": ["94d436e2-e78d-49b2-832f-a088f66c23ec", "6228e19a-9db4-413c-904a-1e5d62350442", "392724ed-efa0-4741-8a3e-4c84041d4c35"]}
+{"query": "How does DER control work in OCPP 2.1?", "relevant": []}
+{"query": "What are the standardized OCPP variables for charging station configuration?", "relevant": []}
