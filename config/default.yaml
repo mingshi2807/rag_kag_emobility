@@ -39,7 +39,7 @@ chunking:
     chunk_size: 512
     chunk_overlap: 64
     min_sentences_per_chunk: 3
-    threshold: 0.5
+    threshold: 0.7
   test_suite:
     strategy: "sentence"
     chunk_size: 256
