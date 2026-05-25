@@ -39,9 +39,9 @@ class DeepSeekConfig:
 
 @dataclass
 class EmbeddingConfig:
-    model_name: str = "BAAI/bge-base-en-v1.5"
+    model_name: str = "BAAI/bge-large-en-v1.5"
     device: str = "cpu"
-    dims: int = 768
+    dims: int = 1024
     batch_size: int = 32
     normalize: bool = True
     query_prefix: str = "Represent this sentence for searching relevant passages: "

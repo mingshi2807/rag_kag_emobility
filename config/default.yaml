@@ -18,9 +18,9 @@ deepseek:
 
 # ── Embedding model ────────────────────────────────────────
 embedding:
-  model_name: "BAAI/bge-base-en-v1.5"
+  model_name: "BAAI/bge-large-en-v1.5"
   device: "cpu"           # "cuda", "cpu", or "mps"
-  dims: 768
+  dims: 1024
   batch_size: 32
   normalize: true
   query_prefix: "Represent this sentence for searching relevant passages: "
