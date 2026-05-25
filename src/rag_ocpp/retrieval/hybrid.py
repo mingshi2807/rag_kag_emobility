@@ -90,8 +90,8 @@ class HybridRetriever:
                 _log.warning("%s search failed: %s", label, r)
         _log.info("vec=%d kw=%d gr=%d", len(vec), len(kw), len(gr))
 
-        # Weighted RRF: keyword gets 3x weight (better for technical specs)
-        weights = [1.0, 3.0, 1.0]  # vector, keyword, graph
+        # Weighted RRF: keyword 3x (tech specs), graph 2x (entity-linked)
+        weights = [1.0, 3.0, 2.0]  # vector, keyword, graph
         fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=weights)
         top_fused = fused[:max(30, self._final_top_k)]
 
@@ -146,7 +146,7 @@ class HybridRetriever:
                 _log.warning("%s search failed: %s", label, r)
         _log.info("vec=%d kw=%d gr=%d", len(vec), len(kw), len(gr))
 
-        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=[1.0, 3.0, 1.0])
+        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=[1.0, 3.0, 2.0])
         top = [c for c, _ in fused[:self._final_top_k]]
         self._final_top_k = save_k
 
