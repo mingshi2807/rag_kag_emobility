@@ -22,7 +22,7 @@ async def reembed():
         if not rows: break
         texts = [r["content"] for r in rows]
         ids = [r["id"] for r in rows]
-        vectors = emb.embed_batch(texts, normalize=cfg.embedding.normalize)
+        vectors = emb.embed_documents(texts)
         vec_strs = ["[" + ",".join(str(float(x)) for x in v) + "]" for v in vectors]
         async with pool.acquire() as conn:
             await conn.executemany("UPDATE chunks SET embedding = $1 WHERE id = $2",
