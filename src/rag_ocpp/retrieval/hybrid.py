@@ -79,10 +79,16 @@ class HybridRetriever:
                 query, top_k=self._graph_top_k, protocol_id=pid or 1,
                 expand_via_traversal=True)))
 
+        import logging
+        _log = logging.getLogger(__name__)
         results = await asyncio.gather(*tasks, return_exceptions=True)
         vec = results[0] if not isinstance(results[0], Exception) else []
         kw = results[1] if not isinstance(results[1], Exception) else []
         gr = results[2] if len(results) > 2 and not isinstance(results[2], Exception) else []
+        for label, r in zip(["vec","kw","gr"], results):
+            if isinstance(r, Exception):
+                _log.warning("%s search failed: %s", label, r)
+        _log.info("vec=%d kw=%d gr=%d", len(vec), len(kw), len(gr))
 
         # Weighted RRF: keyword gets 3x weight (better for technical specs)
         weights = [1.0, 3.0, 1.0]  # vector, keyword, graph
@@ -129,10 +135,16 @@ class HybridRetriever:
                 query, top_k=self._graph_top_k, protocol_id=pid or 1,
                 expand_via_traversal=True)))
 
+        import logging
+        _log = logging.getLogger(__name__)
         results = await asyncio.gather(*tasks, return_exceptions=True)
         vec = results[0] if not isinstance(results[0], Exception) else []
         kw = results[1] if not isinstance(results[1], Exception) else []
         gr = results[2] if len(results) > 2 and not isinstance(results[2], Exception) else []
+        for label, r in zip(["vec","kw","gr"], results):
+            if isinstance(r, Exception):
+                _log.warning("%s search failed: %s", label, r)
+        _log.info("vec=%d kw=%d gr=%d", len(vec), len(kw), len(gr))
 
         fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=[1.0, 3.0, 1.0])
         top = [c for c, _ in fused[:self._final_top_k]]
