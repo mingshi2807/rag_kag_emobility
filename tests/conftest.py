@@ -70,7 +70,7 @@ async def pool(postgres_container):
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
             chunk_index INT NOT NULL, content TEXT NOT NULL, content_hash TEXT NOT NULL,
-            embedding vector(768), strategy TEXT NOT NULL DEFAULT 'semantic',
+            embedding vector, strategy TEXT NOT NULL DEFAULT 'semantic',
             section_title TEXT, page_start INT, page_end INT,
             token_count INT, metadata JSONB,
             tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
