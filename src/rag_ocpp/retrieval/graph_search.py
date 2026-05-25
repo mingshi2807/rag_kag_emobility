@@ -38,12 +38,22 @@ class GraphSearcher:
             protocol_id=protocol_id, entity_names=entity_names, top_k=top_k,
         )
 
-        scored = [
-            ScoredChunk(r.chunk_id, r.document_id, r.chunk_index,
-                        r.content, r.section_title, r.page_start,
-                        r.page_end, r.confidence, "graph")
-            for r in results
-        ]
+        scored = []
+        for r in results:
+            # Boost spec chunks (Part 0-5) vs test case chunks (Part 6)
+            section = r.section_title or ""
+            page = r.page_start or 0
+            is_test = (
+                "Test Case" in section
+                or section.startswith("TC_")
+                or page > 1500
+            )
+            confidence = 0.5 if is_test else 0.9
+            scored.append(ScoredChunk(
+                r.chunk_id, r.document_id, r.chunk_index,
+                r.content, section, r.page_start,
+                r.page_end, confidence, "graph",
+            ))
 
         if expand_via_traversal and len(scored) < top_k:
             expanded = await self._expand(
