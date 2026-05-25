@@ -1,94 +1,72 @@
-# Handoff: RAG-KAG-OCPP — Retrieval Pipeline Stabilization
+# Handoff: RAG-KAG-OCPP Repository Control
 
-**Date:** 2026-05-25  
-**Status:** Pipeline functional, all three strategies contributing to top-5. Latency high (21s cold). Eval scores unknown (need rerun with current UUIDs).
+**Date:** 2026-05-25
+**Control status:** Repo reviewed from local checkout. Root `AGENTS.md` now defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project has a coherent RAG/KAG prototype, but it is not yet enterprise-grade for private knowledge operation. The blocking work is evaluation, schema/config drift, SQL hardening, private-data controls, and operational reproducibility.
 
-## Project Summary
+## Mission
 
-OCPP 2.1 knowledge base with hybrid retrieval (vector + keyword + graph) + DeepSeek LLM generation. Backend: PostgreSQL + pgvector + HNSW. Models: BGE-large-en-v1.5 (1024-dim embeddings), BGE-reranker-base (cross-encoder).
+Build a private e-mobility knowledge base with LLM, RAG, and KAG integration for OCPP first, then broader protocol coverage. The required product bar is answer traceability, private-data protection, reproducible ingestion, measurable retrieval quality, and stable API/CLI/MCP access.
 
-## What Was Done
-
-### Bug fixes (critical — do not revert)
-1. **`vector.py:vector_search`** — `SET LOCAL hnsw.ef_search` and `SELECT` cannot share one `pool.execute()` call (asyncpg single-statement limit). Split into `conn.execute(SET)` + `conn.fetch(SELECT)` using `pool.acquire()` for shared session state. SET must use f-string (`f"SET LOCAL ... = {int(ef_search)}"`), not `$1`.
-
-2. **Vector embedding must be string** — `_vec(query_embedding)` converts list to pgvector format `[0.1,0.2,...]`. Raw list causes asyncpg error.
-
-3. **`vector.py:keyword_search`** — tsquery stemming misses multi-word terms. Added individual-word ILIKE fallback that OR-matches words against content/section_title.
-
-4. **`graph.py:find_entity_names_by_terms`** — Regex entity extraction only matches camelCase. Added DB-backed ILIKE fallback for multi-word names (e.g. "Certificate Management").
-
-### Improvements
-1. **Model upgrade**: BGE-base (768d) → BGE-large (1024d). Column `vector(768)` → `vector(1024)`. Re-embedded 6,535 chunks via `tools/reembed.py`. No re-ingest.
-
-2. **Weighted RRF**: `[1.0, 3.0, 2.0]` (vector, keyword, graph). Keyword dominates for technical specs.
-
-3. **Graph floor**: at least 1 entity-linked chunk in top-5 if graph returned results.
-
-4. **Graph score boost**: spec chunks 0.9, test case chunks (page > 1500) 0.5.
-
-5. **Graph traversal**: `expand_via_traversal=True` by default.
-
-6. **Logging**: `vec=20 kw=20 gr=10 → 5 chunks ({...})` pattern in HybridRetriever.
-
-### Config (`config/default.yaml`)
-- `chunking.spec.strategy`: "recursive"
-- `chunking.spec.chunk_size`: 1024
-- `embedding.model_name`: "BAAI/bge-large-en-v1.5"
-- `embedding.dims`: 1024
-
-### New tools
-- `reembed.py` — re-embed chunks without re-ingesting
-- `repop_eval.py` — populate eval UUIDs from current DB
-- `retrieval_diag.py` — per-query diagnostic
-- `eval_kw_only.py` — keyword-only eval
-
-## Current Pipeline
+## Current Architecture
 
 ```
-Query → BGE-large embed → parallel:
-  ├─ Vector (HNSW, ef_search=100, top_k=20)
-  ├─ Keyword (tsquery + ILIKE, top_k=20)
-  └─ Graph (entity → DB fallback → traversal, top_k=10)
+PDF/JSON -> parser -> cleaner -> metadata -> chunking
+        -> embeddings -> PostgreSQL + pgvector
+        -> entity extraction/linking -> graph tables
 
-→ Weighted RRF [1.0, 3.0, 2.0], k=60
-→ Top-30 → reranker → top-5
-→ Graph floor: ≥1 graph chunk
-→ DeepSeek generation
+Query -> vector + keyword + graph retrieval
+      -> weighted RRF -> reranker -> top chunks
+      -> DeepSeek generation / API / CLI / MCP
 ```
 
-**Verified**: `vec=20 kw=20 gr=10 → 5 chunks ({'vector':1,'graph':1,'keyword':3})`, 21s cold.
+## Current Evidence Snapshot
 
-## Eval
+- `pyproject.toml` defines a Python 3.12 package named `rag-kag-ocpp` with CLI entries `rag` and `rag-mcp`.
+- `config/default.yaml` currently sets BGE-large embeddings at 1024 dimensions and recursive spec chunking at 1024 tokens.
+- `src/rag_ocpp/storage/schema.sql` still declares `chunks.embedding VECTOR(768)`, creating a schema/config mismatch.
+- `docs/ingest.md`, `docs/dev_journey.md`, and `docs/plan_note.md` still describe older BGE-base, 768-dimensional, SDPM/512-token assumptions.
+- `docs/mcp.md` documents six MCP read tools, OCPP-only scope, and stdio-only transport.
+- `tests/test_retrieval/test_vector_search.py` appears to use random document UUIDs instead of the ID returned by `insert_document`, so retrieval integration tests are likely not proving the intended path.
 
-`data/eval/queries.jsonl` has 20 queries with stale UUIDs. **Must rerun**:
+## Strict Control Rules
+
+1. Do not make retrieval or generation changes without a measurable eval baseline.
+2. Do not change embedding dimensions without schema migration, re-embedding, and documentation updates in the same branch.
+3. Do not add SQL built from raw user/query terms. Parameterize all query inputs.
+4. Do not log private source chunks, retrieved context, prompts, answers, or secrets without a redaction policy.
+5. Keep `AGENTS.md`, this handoff, and `docs/AUDIT_REPORT.md` current after material changes.
+
+## Ordered Next Actions
+
+1. Fix schema/config/docs drift around embedding dimension and chunking strategy.
+2. Fix SQL injection surfaces in keyword and graph fallback lookup.
+3. Repair retrieval integration tests and run a clean `pytest` baseline.
+4. Create and run a versioned retrieval evaluation set with Recall@k, MRR, NDCG, source coverage, and answer citation checks.
+5. Add private-knowledge controls: secret handling, log redaction, source access model, data retention, and audit events.
+6. Make migrations explicit instead of relying on manual DB mutation.
+7. Align API, CLI, and MCP limits, filters, and citation behavior.
+8. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, and restore.
+
+## Verification Commands
+
 ```bash
-python tools/repop_eval.py
-python tools/fix_relationships.py
+ruff check .
+mypy src
+pytest
+docker compose up -d
 rag eval data/eval/queries.jsonl --top-k 10
 ```
 
-## Known Issues
+If Docker, model downloads, or DeepSeek credentials are unavailable, record the gap in this file and keep local static checks as the minimum validation.
 
-1. **Latency 21s** — model loading per invocation
-2. **Graph chunks often test cases** — score boost helps but content relevance varies
-3. **Reranker quality unknown** — may hurt more than help; bypass with `enable_rerank=False`
-4. **No eval baseline** — need numbers to compare future improvements
+## Critical Files
 
-## Next Steps
-
-- [ ] Rerun eval for real baseline
-- [ ] Lazy-load reranker (2s saved)
-- [ ] Section adjacency (±2 chunks around match)
-- [ ] Query expansion (entity aliases in keyword)
-- [ ] ColBERT reranker for token-level precision
-
-## Key Files
-
-- `src/rag_ocpp/storage/vector.py` — VectorStore, keyword_search, vector_search (all critical fixes)
-- `src/rag_ocpp/retrieval/hybrid.py` — HybridRetriever (RRF, reranker, graph floor, logging)
-- `src/rag_ocpp/retrieval/fusion.py` — Weighted RRF
-- `src/rag_ocpp/retrieval/graph_search.py` — Entity extraction + traversal + score boost
-- `src/rag_ocpp/storage/graph.py` — GraphStore + entity lookup fallback
-- `config/default.yaml` — All tunables
-- `docker-compose.yml` — PostgreSQL + pgvector
+- `AGENTS.md` - agent and contributor operating rules.
+- `docs/AUDIT_REPORT.md` - strict enterprise-readiness audit and improvement order.
+- `config/default.yaml` - current runtime tunables.
+- `src/rag_ocpp/storage/schema.sql` - database contract.
+- `src/rag_ocpp/storage/vector.py` - vector and keyword retrieval.
+- `src/rag_ocpp/storage/graph.py` - entity, relationship, and graph fallback lookup.
+- `src/rag_ocpp/retrieval/hybrid.py` - retrieval orchestration and strategy fusion.
+- `src/rag_ocpp/mcp/server.py` - agent-facing knowledge tools.
