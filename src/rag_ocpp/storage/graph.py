@@ -583,15 +583,6 @@ class GraphStore:
 
     # ── Query log ───────────────────────────────────────
 
-    async def log_query(
-        self,
-        *,
-        query_text: str,
-        top_chunks: list[UUID],
-        top_scores: list[float],
-        strategy: str = "hybrid",
-        latency_ms: int,
-    ) -> UUID:
     async def find_entity_names_by_terms(
         self, query: str, *, limit: int = 5,
     ) -> list[str]:
