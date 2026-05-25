@@ -110,7 +110,7 @@ class HybridRetriever:
                 final = [best_gr]
 
         breakdown: dict[str, int] = {}
-        for c, _ in fused[:self._final_top_k]:
+        for c in final:
             breakdown[c.strategy] = breakdown.get(c.strategy, 0) + 1
 
         return RetrievalResult(
@@ -159,9 +159,9 @@ class HybridRetriever:
         self._final_top_k = save_k
 
         breakdown: dict[str, int] = {}
-        for c, _ in fused[:self._final_top_k]:
+        for c in top:
             breakdown[c.strategy] = breakdown.get(c.strategy, 0) + 1
-
+ 
         return RetrievalResult(
             chunks=top,
             strategy_breakdown=breakdown,
