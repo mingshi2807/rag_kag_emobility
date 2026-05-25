@@ -42,9 +42,9 @@ class HybridRetriever:
     def __init__(
         self, pool: asyncpg.Pool, embedding_model: EmbeddingModel,
         reranker: CrossEncoderReranker, *,
-        vector_top_k: int = 20, keyword_top_k: int = 10,
+        vector_top_k: int = 20, keyword_top_k: int = 20,
         graph_top_k: int = 10, fusion_k: int = 60, final_top_k: int = 5,
-        enable_graph: bool = True,
+        enable_graph: bool = True, enable_rerank: bool = False,
     ) -> None:
         self._vector = VectorSearcher(pool, embedding_model)
         self._keyword = KeywordSearcher(pool)
@@ -57,6 +57,7 @@ class HybridRetriever:
         self._fusion_k = fusion_k
         self._final_top_k = final_top_k
         self._enable_graph = enable_graph
+        self._enable_rerank = enable_rerank
 
     async def retrieve(
         self, query: str, *, filters: SearchFilters | None = None,
@@ -75,16 +76,24 @@ class HybridRetriever:
         ]
         if self._enable_graph:
             tasks.append(asyncio.create_task(self._graph.search(
-                query, top_k=self._graph_top_k, protocol_id=pid or 1)))
+                query, top_k=self._graph_top_k, protocol_id=pid or 1,
+                expand_via_traversal=True)))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         vec = results[0] if not isinstance(results[0], Exception) else []
         kw = results[1] if not isinstance(results[1], Exception) else []
         gr = results[2] if len(results) > 2 and not isinstance(results[2], Exception) else []
 
-        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k)
-        candidates = [c for c, _ in fused[:30]]
-        final = self._reranker.rerank(query, candidates, top_k=self._final_top_k)
+        # Weighted RRF: keyword gets 3x weight (better for technical specs)
+        weights = [1.0, 3.0, 1.0]  # vector, keyword, graph
+        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=weights)
+        top_fused = fused[:max(30, self._final_top_k)]
+
+        if self._enable_rerank:
+            candidates = [c for c, _ in top_fused]
+            final = self._reranker.rerank(query, candidates, top_k=self._final_top_k)
+        else:
+            final = [c for c, _ in top_fused[:self._final_top_k]]
 
         breakdown: dict[str, int] = {}
         for c, _ in fused[:self._final_top_k]:
@@ -117,14 +126,15 @@ class HybridRetriever:
         ]
         if self._enable_graph:
             tasks.append(asyncio.create_task(self._graph.search(
-                query, top_k=self._graph_top_k, protocol_id=pid or 1)))
+                query, top_k=self._graph_top_k, protocol_id=pid or 1,
+                expand_via_traversal=True)))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         vec = results[0] if not isinstance(results[0], Exception) else []
         kw = results[1] if not isinstance(results[1], Exception) else []
         gr = results[2] if len(results) > 2 and not isinstance(results[2], Exception) else []
 
-        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k)
+        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=[1.0, 3.0, 1.0])
         top = [c for c, _ in fused[:self._final_top_k]]
         self._final_top_k = save_k
 

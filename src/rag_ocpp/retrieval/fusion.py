@@ -9,22 +9,23 @@ from rag_ocpp.retrieval.searchers import ScoredChunk
 
 def reciprocal_rank_fusion(
     result_sets: list[list[ScoredChunk]], k: int = 60,
+    weights: list[float] | None = None,
 ) -> list[tuple[ScoredChunk, float]]:
-    """Merge multiple ranked result lists via RRF.
+    """Merge multiple ranked result lists via weighted RRF.
 
-    RRF score = Σ (1 / (k + rank_in_list))
-
-    Why RRF: no need to normalize scores across strategies
-    (cosine in [0,1], ts_rank unbounded, confidence in [0,1]).
-    Robust to outlier scores. Proven in TREC/BEIR benchmarks.
+    RRF score = Σ weight_i * (1 / (k + rank_in_list_i))
+    Default: all lists weight 1.0 (classic RRF).
     """
+    if weights is None:
+        weights = [1.0] * len(result_sets)
+
     scores: dict[str, float] = defaultdict(float)
     items: dict[str, ScoredChunk] = {}
 
-    for results in result_sets:
+    for w, results in zip(weights, result_sets):
         for rank, chunk in enumerate(results):
             cid = str(chunk.chunk_id)
-            scores[cid] += 1.0 / (k + rank + 1)
+            scores[cid] += w * 1.0 / (k + rank + 1)
             if cid not in items:
                 items[cid] = chunk
 
