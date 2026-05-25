@@ -101,6 +101,14 @@ class HybridRetriever:
         else:
             final = [c for c, _ in top_fused[:self._final_top_k]]
 
+        # Graph floor: ensure at least 1 entity-linked chunk if graph returned results
+        if gr and not any(c.strategy == "graph" for c in final):
+            best_gr = max(gr, key=lambda c: c.score)
+            if final:
+                final[-1] = best_gr
+            else:
+                final = [best_gr]
+
         breakdown: dict[str, int] = {}
         for c, _ in fused[:self._final_top_k]:
             breakdown[c.strategy] = breakdown.get(c.strategy, 0) + 1
