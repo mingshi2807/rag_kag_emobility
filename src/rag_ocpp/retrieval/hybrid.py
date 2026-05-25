@@ -44,7 +44,7 @@ class HybridRetriever:
         reranker: CrossEncoderReranker, *,
         vector_top_k: int = 20, keyword_top_k: int = 20,
         graph_top_k: int = 10, fusion_k: int = 60, final_top_k: int = 5,
-        enable_graph: bool = True, enable_rerank: bool = False,
+        enable_graph: bool = True, enable_rerank: bool = True,
     ) -> None:
         self._vector = VectorSearcher(pool, embedding_model)
         self._keyword = KeywordSearcher(pool)
