@@ -253,18 +253,19 @@ class VectorStore:
 
         where = " AND ".join(clauses)
 
-        # asyncpg: one statement per execute(); run SET before SELECT
-        await self._pool.execute("SET LOCAL hnsw.ef_search = $1", ef_search)
-        rows = await self._pool.fetch(
-            f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
-                   c.section_title, c.page_start, c.page_end,
-                   1.0 - (c.embedding <=> $1) AS similarity
-            FROM chunks c
-            WHERE c.embedding IS NOT NULL AND {where}
-            ORDER BY c.embedding <=> $1
-            LIMIT $2""",
-            *[query_embedding, top_k],
-        )
+        # Use single connection for SET + FETCH to share session state
+        async with self._pool.acquire() as conn:
+            await conn.execute("SET LOCAL hnsw.ef_search = $1", ef_search)
+            rows = await conn.fetch(
+                f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
+                       c.section_title, c.page_start, c.page_end,
+                       1.0 - (c.embedding <=> $1) AS similarity
+                FROM chunks c
+                WHERE c.embedding IS NOT NULL AND {where}
+                ORDER BY c.embedding <=> $1
+                LIMIT $2""",
+                *[query_embedding, top_k],
+            )
         return [
             VectorSearchResult(
                 chunk_id=r["id"],
