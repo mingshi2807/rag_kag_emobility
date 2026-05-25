@@ -264,7 +264,7 @@ class VectorStore:
                 WHERE c.embedding IS NOT NULL AND {where}
                 ORDER BY c.embedding <=> $1
                 LIMIT $2""",
-                *[query_embedding, top_k],
+                _vec(query_embedding), top_k,
             )
         return [
             VectorSearchResult(
