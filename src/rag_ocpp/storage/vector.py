@@ -327,15 +327,21 @@ class VectorStore:
             *params,
         )
         # Always supplement with ILIKE (tsquery stemming often misses key terms)
+        words = [w for w in query.split() if len(w) > 2]
+        if words:
+            ilike_clauses = " OR ".join(
+                [f"(c.content ILIKE '%{w}%' OR c.section_title ILIKE '%{w}%')" for w in words[:5]]
+            )
+        else:
+            ilike_clauses = f"c.content ILIKE '%{query}%' OR c.section_title ILIKE '%{query}%'"
         ilike_rows = await self._pool.fetch(
-            """SELECT c.id, c.document_id, c.chunk_index, c.content,
+            f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
                    c.section_title, c.page_start, c.page_end,
-                   0.5::real AS rank
+                   0.3::real AS rank
             FROM chunks c
-            WHERE c.content ILIKE $1 OR c.section_title ILIKE $1
+            WHERE {ilike_clauses}
             ORDER BY c.page_start
-            LIMIT $2""",
-            f"%{query}%", top_k,
+            LIMIT {top_k}""",
         )
         # Merge tsquery + ILIKE results, deduplicate by id, keep higher rank
         seen: dict[str, dict[str, Any]] = {}
