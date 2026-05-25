@@ -28,6 +28,9 @@ class GraphSearcher:
         expand_via_traversal: bool = False, max_traversal_depth: int = 2,
     ) -> list[ScoredChunk]:
         entity_names = extract_entity_names(query)
+        # Fallback: query DB for entity names matching query words
+        if not entity_names:
+            entity_names = await self._graph.find_entity_names_by_terms(query, limit=5)
         if not entity_names:
             return []
 

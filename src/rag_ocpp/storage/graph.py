@@ -592,6 +592,28 @@ class GraphStore:
         strategy: str = "hybrid",
         latency_ms: int,
     ) -> UUID:
+    async def find_entity_names_by_terms(
+        self, query: str, *, limit: int = 5,
+    ) -> list[str]:
+        """Find entity names matching query substrings (ILIKE fallback for regex misses)."""
+        words = [w for w in query.split() if len(w) > 2]
+        if not words:
+            return []
+        clauses = " OR ".join([f"name ILIKE '%{w}%'" for w in words[:4]])
+        rows = await self._pool.fetch(
+            f"SELECT name FROM entities WHERE {clauses} ORDER BY name LIMIT {limit}"
+        )
+        return [r["name"] for r in rows]
+
+    async def record_query(
+        self,
+        *,
+        query_text: str,
+        top_chunks: list[str],
+        top_scores: list[float],
+        strategy: str = "hybrid",
+        latency_ms: int,
+    ) -> UUID:
         """Record a query for evaluation / observability."""
         row = await self._pool.fetchrow(
             """
