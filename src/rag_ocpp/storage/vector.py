@@ -255,7 +255,7 @@ class VectorStore:
 
         # Use single connection for SET + FETCH to share session state
         async with self._pool.acquire() as conn:
-            await conn.execute("SET LOCAL hnsw.ef_search = $1", ef_search)
+            await conn.execute(f"SET LOCAL hnsw.ef_search = {int(ef_search)}")
             rows = await conn.fetch(
                 f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
                        c.section_title, c.page_start, c.page_end,
