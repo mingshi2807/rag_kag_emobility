@@ -10,6 +10,7 @@ Treat correctness, traceability, source control, and evaluation as product requi
 
 - `src/rag_ocpp/` contains the Python package.
 - `src/rag_ocpp/storage/` owns PostgreSQL schema, vector search, and graph storage.
+- `src/rag_ocpp/corpus/` owns source-aware OCPP 2.1 Ed2 evidence extraction.
 - `src/rag_ocpp/retrieval/` owns vector, keyword, graph, fusion, rerank, and orchestration.
 - `src/rag_ocpp/ingestion/`, `chunking/`, `embedding/`, and `knowledge/` own document-to-index pipelines.
 - `src/rag_ocpp/api/`, `cli/`, and `mcp/` are external access surfaces.

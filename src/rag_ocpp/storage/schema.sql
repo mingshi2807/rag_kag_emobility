@@ -42,6 +42,58 @@ CREATE TABLE documents (
 CREATE INDEX documents_protocol ON documents(protocol_id);
 CREATE INDEX documents_type    ON documents(doc_type);
 
+-- Source file registry for source-aware enterprise evidence.
+-- One row per ingested PDF, CSV/XLSX, or JSON schema artifact.
+CREATE TABLE source_documents (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    protocol_id     SMALLINT NOT NULL REFERENCES protocols(id),
+    source_type     TEXT NOT NULL CHECK (
+        source_type IN ('spec_pdf', 'device_model_table', 'json_schema', 'appendix_csv')
+    ),
+    source_path     TEXT NOT NULL,
+    title           TEXT,
+    version         TEXT,
+    edition         TEXT,
+    document_date   DATE,
+    content_hash    TEXT NOT NULL,
+    raw_bytes       BIGINT,
+    metadata        JSONB,
+    ingested_at     TIMESTAMPTZ DEFAULT now(),
+
+    UNIQUE(protocol_id, source_path, content_hash)
+);
+
+CREATE INDEX source_documents_protocol ON source_documents(protocol_id);
+CREATE INDEX source_documents_type ON source_documents(source_type);
+CREATE INDEX source_documents_hash ON source_documents(content_hash);
+
+-- Normalized source-aware evidence records extracted from source files.
+-- These records are the stable bridge between raw sources, chunks, and graph nodes.
+CREATE TABLE corpus_records (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    source_document_id  UUID NOT NULL REFERENCES source_documents(id) ON DELETE CASCADE,
+    record_type         TEXT NOT NULL,
+    stable_key          TEXT NOT NULL,
+    title               TEXT,
+    content             TEXT NOT NULL,
+    content_hash        TEXT NOT NULL,
+    page_start          INT,
+    page_end            INT,
+    row_number          INT,
+    section_title       TEXT,
+    entity_name         TEXT,
+    entity_type         TEXT,
+    metadata            JSONB,
+    created_at          TIMESTAMPTZ DEFAULT now(),
+
+    UNIQUE(source_document_id, stable_key)
+);
+
+CREATE INDEX corpus_records_source ON corpus_records(source_document_id);
+CREATE INDEX corpus_records_type ON corpus_records(record_type);
+CREATE INDEX corpus_records_entity ON corpus_records(entity_type, entity_name);
+CREATE INDEX corpus_records_hash ON corpus_records(content_hash);
+
 -- ── Chunks (vector store) ─────────────────────────────────────
 
 CREATE TABLE chunks (
@@ -50,7 +102,7 @@ CREATE TABLE chunks (
     chunk_index     INT NOT NULL,
     content         TEXT NOT NULL,
     content_hash    TEXT NOT NULL,            -- SHA-256 hex, for dedup
-    embedding       VECTOR(768),             -- bge-base-en-v1.5 dimension
+    embedding       VECTOR(1024),            -- bge-large-en-v1.5 dimension
     strategy        TEXT,                    -- 'sdpm', 'sentence', 'recursive'
     section_title   TEXT,                    -- extracted from PDF ToC / heading
     page_start      INT,
@@ -94,7 +146,14 @@ INSERT INTO entity_types (id, protocol_id, name) VALUES
     (6,  1, 'message_flow'),
     (7,  1, 'functional_block'),
     (8,  1, 'error_code'),
-    (9,  1, 'test_case');
+    (9,  1, 'test_case'),
+    (10, 1, 'message'),
+    (11, 1, 'request'),
+    (12, 1, 'response'),
+    (13, 1, 'field'),
+    (14, 1, 'attribute'),
+    (15, 1, 'requirement'),
+    (16, 1, 'schema');
 
 -- ── Entities (knowledge graph nodes) ──────────────────────────
 

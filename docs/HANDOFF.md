@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
-**Date:** 2026-05-25
-**Control status:** Repo reviewed from local checkout. Root `AGENTS.md` now defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project has a coherent RAG/KAG prototype, but it is not yet enterprise-grade for private knowledge operation. The blocking work is evaluation, schema/config drift, SQL hardening, private-data controls, and operational reproducibility.
+**Date:** 2026-05-26
+**Control status:** First OCPP 2.1 Ed2 source-aware corpus slice implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas. The obvious raw SQL fallback paths have also been parameterized. It is still not enterprise-ready until corpus records are persisted, linked into graph/chunks, evaluated, and protected by private-data controls.
 
 ## Mission
 
@@ -24,7 +24,10 @@ Query -> vector + keyword + graph retrieval
 
 - `pyproject.toml` defines a Python 3.12 package named `rag-kag-ocpp` with CLI entries `rag` and `rag-mcp`.
 - `config/default.yaml` currently sets BGE-large embeddings at 1024 dimensions and recursive spec chunking at 1024 tokens.
-- `src/rag_ocpp/storage/schema.sql` still declares `chunks.embedding VECTOR(768)`, creating a schema/config mismatch.
+- `src/rag_ocpp/storage/schema.sql` now declares `chunks.embedding VECTOR(1024)` and adds `source_documents` plus `corpus_records`.
+- `src/rag_ocpp/corpus/` normalizes source-aware evidence records from the OCPP 2.1 Ed2 Part 2 PDF, Device Model CSV/XLSX files, and JSON schemas.
+- `src/rag_ocpp/cli/corpus.py` adds `rag corpus`, defaulting to dry-run preview; use `--store` to write source/corpus records.
+- `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` now parameterize the previous keyword/entity ILIKE fallback SQL paths.
 - `docs/ingest.md`, `docs/dev_journey.md`, and `docs/plan_note.md` still describe older BGE-base, 768-dimensional, SDPM/512-token assumptions.
 - `docs/mcp.md` documents six MCP read tools, OCPP-only scope, and stdio-only transport.
 - `tests/test_retrieval/test_vector_search.py` appears to use random document UUIDs instead of the ID returned by `insert_document`, so retrieval integration tests are likely not proving the intended path.
@@ -39,10 +42,10 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Fix schema/config/docs drift around embedding dimension and chunking strategy.
-2. Fix SQL injection surfaces in keyword and graph fallback lookup.
+1. Run `rag corpus --dry-run` in a Python 3.12 environment with project dependencies installed, then run `rag corpus --store` against a fresh DB.
+2. Wire `corpus_records` into chunk creation, embeddings, and graph node/relationship creation.
 3. Repair retrieval integration tests and run a clean `pytest` baseline.
-4. Create and run a versioned retrieval evaluation set with Recall@k, MRR, NDCG, source coverage, and answer citation checks.
+4. Create and run a versioned OCPP Ed2 Part 2 eval set with Recall@k, MRR, NDCG, source coverage, and answer citation checks.
 5. Add private-knowledge controls: secret handling, log redaction, source access model, data retention, and audit events.
 6. Make migrations explicit instead of relying on manual DB mutation.
 7. Align API, CLI, and MCP limits, filters, and citation behavior.
@@ -66,6 +69,9 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `docs/AUDIT_REPORT.md` - strict enterprise-readiness audit and improvement order.
 - `config/default.yaml` - current runtime tunables.
 - `src/rag_ocpp/storage/schema.sql` - database contract.
+- `src/rag_ocpp/corpus/ocpp21.py` - OCPP 2.1 Ed2 source-aware corpus parsers.
+- `src/rag_ocpp/storage/corpus.py` - DB adapter for source documents and corpus records.
+- `src/rag_ocpp/cli/corpus.py` - corpus preview/store CLI command.
 - `src/rag_ocpp/storage/vector.py` - vector and keyword retrieval.
 - `src/rag_ocpp/storage/graph.py` - entity, relationship, and graph fallback lookup.
 - `src/rag_ocpp/retrieval/hybrid.py` - retrieval orchestration and strategy fusion.

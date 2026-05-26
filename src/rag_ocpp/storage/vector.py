@@ -293,25 +293,24 @@ class VectorStore:
         Uses ``plainto_tsquery('english', $1)`` to parse the user query
         into a tsquery, then ``ts_rank`` for scoring.
         """
+        top_k = max(1, min(int(top_k), 100))
         clauses = ["c.tsv @@ plainto_tsquery('english', $1)"]
-        params: list[Any] = [_prepare_tsquery(query), top_k]
+        params: list[Any] = [_prepare_tsquery(query)]
 
         if protocol_id is not None:
             clauses.append(
-                "c.document_id IN (SELECT id FROM documents WHERE protocol_id = $3)"
+                f"c.document_id IN (SELECT id FROM documents WHERE protocol_id = ${len(params) + 1})"
             )
             params.append(protocol_id)
-            offset = 1
-        else:
-            offset = 0
 
         if doc_type is not None:
-            idx = 3 + offset
             clauses.append(
-                f"c.document_id IN (SELECT id FROM documents WHERE doc_type = ${idx})"
+                f"c.document_id IN (SELECT id FROM documents WHERE doc_type = ${len(params) + 1})"
             )
             params.append(doc_type)
 
+        limit_ref = f"${len(params) + 1}"
+        params.append(top_k)
         where = " AND ".join(clauses)
 
         rows = await self._pool.fetch(
@@ -322,26 +321,44 @@ class VectorStore:
             FROM chunks c
             WHERE {where}
             ORDER BY rank DESC
-            LIMIT $2
+            LIMIT {limit_ref}
             """,
             *params,
         )
         # Always supplement with ILIKE (tsquery stemming often misses key terms)
         words = [w for w in query.split() if len(w) > 2]
-        if words:
-            ilike_clauses = " OR ".join(
-                [f"(c.content ILIKE '%{w}%' OR c.section_title ILIKE '%{w}%')" for w in words[:5]]
+        terms = words[:5] if words else [query]
+        ilike_params: list[Any] = []
+        ilike_clauses = []
+        for term in terms:
+            ilike_params.append(f"%{term}%")
+            ref = f"${len(ilike_params)}"
+            ilike_clauses.append(
+                f"(c.content ILIKE {ref} OR c.section_title ILIKE {ref})"
             )
-        else:
-            ilike_clauses = f"c.content ILIKE '%{query}%' OR c.section_title ILIKE '%{query}%'"
+        ilike_filters = [f"({' OR '.join(ilike_clauses)})"]
+        if protocol_id is not None:
+            ilike_params.append(protocol_id)
+            ilike_filters.append(
+                f"c.document_id IN (SELECT id FROM documents WHERE protocol_id = ${len(ilike_params)})"
+            )
+        if doc_type is not None:
+            ilike_params.append(doc_type)
+            ilike_filters.append(
+                f"c.document_id IN (SELECT id FROM documents WHERE doc_type = ${len(ilike_params)})"
+            )
+        ilike_params.append(top_k)
+        ilike_limit_ref = f"${len(ilike_params)}"
+        ilike_where = " AND ".join(ilike_filters)
         ilike_rows = await self._pool.fetch(
             f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
                    c.section_title, c.page_start, c.page_end,
                    0.3::real AS rank
             FROM chunks c
-            WHERE {ilike_clauses}
+            WHERE {ilike_where}
             ORDER BY c.page_start
-            LIMIT {top_k}""",
+            LIMIT {ilike_limit_ref}""",
+            *ilike_params,
         )
         # Merge tsquery + ILIKE results, deduplicate by id, keep higher rank
         seen: dict[str, dict[str, Any]] = {}

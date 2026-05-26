@@ -21,6 +21,13 @@ class OCPPEntityType(Enum):
     FUNCTIONAL_BLOCK = (7,  "functional_block")
     ERROR_CODE       = (8,  "error_code")
     TEST_CASE        = (9,  "test_case")
+    MESSAGE          = (10, "message")
+    REQUEST          = (11, "request")
+    RESPONSE         = (12, "response")
+    FIELD            = (13, "field")
+    ATTRIBUTE        = (14, "attribute")
+    REQUIREMENT      = (15, "requirement")
+    SCHEMA           = (16, "schema")
 
     @property
     def type_id(self) -> int:

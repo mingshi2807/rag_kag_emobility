@@ -443,10 +443,14 @@ class GraphStore:
         Example: traverse from "IdToken" entity, follow "uses" edges
         backward to find all commands that reference IdToken.
         """
+        max_depth = max(0, min(int(max_depth), 5))
+        params: list[Any] = [start_entity_id]
         type_filter = ""
         if rel_types:
-            rel_list = "', '".join(rel_types)
-            type_filter = f"AND r.rel_type IN ('{rel_list}')"
+            params.append(rel_types)
+            type_filter = f"AND r.rel_type = ANY(${len(params)}::text[])"
+        params.append(max_depth)
+        depth_ref = f"${len(params)}"
 
         if follow_both_directions:
             join_clause = f"""
@@ -462,7 +466,7 @@ class GraphStore:
                     END
                 JOIN entity_types et
                     ON et.id = e.type_id AND et.protocol_id = e.protocol_id
-                WHERE chain.depth < {max_depth}
+                WHERE chain.depth < {depth_ref}
                 {type_filter}
             """
         else:
@@ -474,7 +478,7 @@ class GraphStore:
                 JOIN entities e ON e.id = r.target_id
                 JOIN entity_types et
                     ON et.id = e.type_id AND et.protocol_id = e.protocol_id
-                WHERE chain.depth < {max_depth}
+                WHERE chain.depth < {depth_ref}
                 {type_filter}
             """
 
@@ -498,7 +502,7 @@ class GraphStore:
             FROM entity_chain
             ORDER BY entity_id, depth, path
             """,
-            start_entity_id,
+            *params,
         )
         return [
             TraversalNode(
@@ -584,15 +588,31 @@ class GraphStore:
     # ── Query log ───────────────────────────────────────
 
     async def find_entity_names_by_terms(
-        self, query: str, *, limit: int = 5,
+        self, query: str, *, limit: int = 5, protocol_id: int | None = 1,
     ) -> list[str]:
         """Find entity names matching query substrings (ILIKE fallback for regex misses)."""
         words = [w for w in query.split() if len(w) > 2]
         if not words:
             return []
-        clauses = " OR ".join([f"name ILIKE '%{w}%'" for w in words[:4]])
+        params: list[Any] = []
+        clauses = []
+        for word in words[:4]:
+            params.append(f"%{word}%")
+            clauses.append(f"name ILIKE ${len(params)}")
+        filters = [f"({' OR '.join(clauses)})"]
+        if protocol_id is not None:
+            params.append(protocol_id)
+            filters.append(f"protocol_id = ${len(params)}")
+        params.append(max(1, min(int(limit), 100)))
         rows = await self._pool.fetch(
-            f"SELECT name FROM entities WHERE {clauses} ORDER BY name LIMIT {limit}"
+            f"""
+            SELECT name
+            FROM entities
+            WHERE {' AND '.join(filters)}
+            ORDER BY name
+            LIMIT ${len(params)}
+            """,
+            *params,
         )
         return [r["name"] for r in rows]
 
