@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 class EmbeddingModel:
     """HuggingFace embedding model wrapper.
 
-    Primary: BAAI/bge-base-en-v1.5
-      - Dimensions: 768
+    Primary: BAAI/bge-large-en-v1.5
+      - Dimensions: 1024
       - Parameters: 109M
       - Max sequence length: 512 tokens
       - MTEB Retrieval: ~53% (top-3 for size class)
@@ -166,7 +166,7 @@ class EmbeddingModel:
     def _local_model_path(self) -> Path | None:
         import os
         hf_home = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"))
-        model_dir = hf_home / "hub" / "models--BAAI--bge-base-en-v1.5"
+        model_dir = hf_home / "hub" / f"models--{self._model_name.replace('/', '--')}"
         if model_dir.exists():
             snapshots = sorted(model_dir.glob("snapshots/*"))
             if snapshots:
