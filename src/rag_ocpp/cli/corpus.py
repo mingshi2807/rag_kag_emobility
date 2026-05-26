@@ -11,6 +11,7 @@ import typer
 from rich.progress import Progress
 
 from rag_ocpp.config import get_config, load_config
+from rag_ocpp.corpus.indexer import CorpusIndexer
 from rag_ocpp.corpus.models import SourceDocument
 from rag_ocpp.corpus.ocpp21 import (
     OCPP21_ED2_DM_DIR,
@@ -21,6 +22,7 @@ from rag_ocpp.corpus.ocpp21 import (
     parse_json_schema_file,
     parse_spec_pdf_sections,
 )
+from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.storage.corpus import (
     CorpusRecordInsert,
     CorpusStore,
@@ -122,6 +124,47 @@ async def _corpus_async(
 
     mode = "Previewed" if dry_run else "Stored"
     typer.echo(f"{mode} {total_records} corpus records from {len(planned)} sources.")
+
+
+def index_corpus_command(
+    no_embed: bool = typer.Option(False, "--no-embed", help="Create chunks/graph only."),
+    batch_size: int = typer.Option(128, help="Embedding batch size."),
+    limit: int | None = typer.Option(None, help="Optional record limit for smoke tests."),
+) -> None:
+    """Index stored corpus records into chunks, embeddings, and graph links."""
+    asyncio.run(
+        _index_corpus_async(no_embed=no_embed, batch_size=batch_size, limit=limit)
+    )
+
+
+async def _index_corpus_async(
+    *, no_embed: bool, batch_size: int, limit: int | None,
+) -> None:
+    load_config()
+    cfg = get_config()
+    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+
+    pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
+    try:
+        model = None if no_embed else EmbeddingModel(cfg.embedding)
+        indexer = CorpusIndexer(pool, model)
+        result = await indexer.index_all(
+            embed=not no_embed,
+            batch_size=batch_size,
+            limit=limit,
+        )
+    finally:
+        await pool.close()
+
+    typer.echo(
+        "Indexed corpus: "
+        f"{result.sources_indexed} sources, "
+        f"{result.records_indexed} records, "
+        f"{result.chunks_upserted} chunks, "
+        f"{result.chunks_embedded} embeddings, "
+        f"{result.entities_linked} entity links, "
+        f"{result.relationships_created} relationships."
+    )
 
 
 def _planned_sources(

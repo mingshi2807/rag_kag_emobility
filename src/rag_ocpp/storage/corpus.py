@@ -202,3 +202,48 @@ class CorpusStore:
             source_document_id,
         )
         return [dict(row) for row in rows]
+
+    async def list_source_documents(self) -> list[dict[str, Any]]:
+        """Return all registered source documents."""
+        rows = await self._pool.fetch(
+            """
+            SELECT id, protocol_id, source_type, source_path, title, version,
+                   edition, document_date, content_hash, raw_bytes, metadata
+            FROM source_documents
+            ORDER BY source_type, source_path
+            """
+        )
+        return [dict(row) for row in rows]
+
+    async def list_corpus_records(
+        self,
+        *,
+        source_document_id: UUID | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return corpus records, optionally scoped to one source document."""
+        params: list[Any] = []
+        filters = []
+        if source_document_id is not None:
+            params.append(source_document_id)
+            filters.append(f"source_document_id = ${len(params)}")
+        where = f"WHERE {' AND '.join(filters)}" if filters else ""
+        limit_clause = ""
+        if limit is not None:
+            params.append(max(1, int(limit)))
+            limit_clause = f"LIMIT ${len(params)}"
+
+        rows = await self._pool.fetch(
+            f"""
+            SELECT id, source_document_id, record_type, stable_key, title,
+                   content, content_hash, page_start, page_end, row_number,
+                   section_title, entity_name, entity_type, metadata
+            FROM corpus_records
+            {where}
+            ORDER BY source_document_id, row_number NULLS LAST,
+                     page_start NULLS LAST, stable_key
+            {limit_clause}
+            """,
+            *params,
+        )
+        return [dict(row) for row in rows]

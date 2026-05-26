@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
@@ -18,6 +19,13 @@ def _vec(embedding: list[float] | None) -> str | None:
     if embedding is None:
         return None
     return "[" + ",".join(str(x) for x in embedding) + "]"
+
+
+def _json(value: Any) -> str | None:
+    """Convert structured metadata to JSON for PostgreSQL JSONB columns."""
+    if value is None:
+        return None
+    return json.dumps(value)
 
 
 def _prepare_tsquery(text: str) -> str:
@@ -115,7 +123,7 @@ class VectorStore:
             RETURNING id
             """,
             protocol_id, source_path, doc_type, title, version, part,
-            page_count, raw_bytes, metadata,
+            page_count, raw_bytes, _json(metadata),
         )
         assert row is not None
         return row["id"]
@@ -157,7 +165,7 @@ class VectorStore:
                         c.page_start,
                         c.page_end,
                         c.token_count,
-                        c.metadata,
+                        _json(c.metadata),
                     )
                     for c in chunks
                 ],
@@ -190,7 +198,7 @@ class VectorStore:
                 c.page_start,
                 c.page_end,
                 c.token_count,
-                c.metadata,
+                _json(c.metadata),
             )
             for c in chunks
         ]

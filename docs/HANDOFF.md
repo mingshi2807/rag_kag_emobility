@@ -27,6 +27,7 @@ Query -> vector + keyword + graph retrieval
 - `src/rag_ocpp/storage/schema.sql` now declares `chunks.embedding VECTOR(1024)` and adds `source_documents` plus `corpus_records`.
 - `src/rag_ocpp/corpus/` normalizes source-aware evidence records from the OCPP 2.1 Ed2 Part 2 PDF, Device Model CSV/XLSX files, and JSON schemas.
 - `src/rag_ocpp/cli/corpus.py` adds `rag corpus`, defaulting to dry-run preview; use `--store` to write source/corpus records.
+- `rag index-corpus` indexes stored corpus records into `chunks`, embeddings, graph entities, chunk/entity links, and source-definition relationships.
 - `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` now parameterize the previous keyword/entity ILIKE fallback SQL paths.
 - `docs/ingest.md`, `docs/dev_journey.md`, and `docs/plan_note.md` still describe older BGE-base, 768-dimensional, SDPM/512-token assumptions.
 - `docs/mcp.md` documents six MCP read tools, OCPP-only scope, and stdio-only transport.
@@ -42,8 +43,8 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Run `rag corpus --dry-run` in a Python 3.12 environment with project dependencies installed, then run `rag corpus --store` against a fresh DB.
-2. Wire `corpus_records` into chunk creation, embeddings, and graph node/relationship creation.
+1. Smoke-test indexing with `rag index-corpus --no-embed --limit 50`, then inspect `chunks`, `chunk_entities`, and `relationships`.
+2. Run full indexing with `rag index-corpus --batch-size 32` or another batch size that fits local memory.
 3. Repair retrieval integration tests and run a clean `pytest` baseline.
 4. Create and run a versioned OCPP Ed2 Part 2 eval set with Recall@k, MRR, NDCG, source coverage, and answer citation checks.
 5. Add private-knowledge controls: secret handling, log redaction, source access model, data retention, and audit events.
@@ -70,6 +71,7 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `config/default.yaml` - current runtime tunables.
 - `src/rag_ocpp/storage/schema.sql` - database contract.
 - `src/rag_ocpp/corpus/ocpp21.py` - OCPP 2.1 Ed2 source-aware corpus parsers.
+- `src/rag_ocpp/corpus/indexer.py` - indexes corpus records into chunks, embeddings, and graph links.
 - `src/rag_ocpp/storage/corpus.py` - DB adapter for source documents and corpus records.
 - `src/rag_ocpp/cli/corpus.py` - corpus preview/store CLI command.
 - `src/rag_ocpp/storage/vector.py` - vector and keyword retrieval.
