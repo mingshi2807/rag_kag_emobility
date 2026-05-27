@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.1.2] - 2026-05-27
+
+### Added
+
+- Added source-aware `rag eval-quality` suite for 12 OCPP 2.1 Ed2 R/Q/K cases across specification, Device Model, JSON schema, and fusion retrieval modes.
+- Added `rag eval-answers` golden Markdown answer evaluation for generated implementation guidance.
+- Added strict golden-answer sections: Purpose, Normative behavior, Implementation guidance, Conformance-test focus, and Evidence gaps.
+- Added cached/offline answer scoring with `--from-answers-dir`.
+- Added DeepSeek generated-answer baseline reports in `reports/golden_answers/`.
+- Added Codex-assisted MCP-evidence benchmark answers in `reports/golden_answers_codex-only/`.
+- Added DeepSeek vs Codex-only golden-answer benchmark report.
+
+### Changed
+
+- Hardened generation prompting for golden-answer evaluation with implementation-guidance and conformance-test expectations.
+- Updated MCP and query-quality documentation with the Codex-assisted manual benchmark workflow.
+- Updated handoff state to reflect retrieval and generated-answer evaluation gates.
+
+### Verified
+
+- Retrieval quality baseline: `12/12` passed, score `0.976`.
+- DeepSeek golden answers: `3/3` passed, score `1.000`.
+- Codex-assisted MCP golden answers: `3/3` passed, score `1.000`.
+- DeepSeek vs Codex-only benchmark completed: DeepSeek `50` citations, Codex-only `28` citations.
+
+### Known Limitations
+
+- Golden-answer scoring is necessary but not sufficient to prove full OCPP protocol correctness.
+- Citation precision and unsupported-claim detection still need stricter scorer layers.
+- OpenAI/Codex generation remains a Codex-assisted manual MCP workflow, not a repo CLI provider.
+- CI wiring for retrieval and golden-answer gates remains future work.
+
 ## [v0.1.0-wip] - 2026-05-27
 
 ### Added
