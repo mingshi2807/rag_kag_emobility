@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import jinja2
 
-
 SYSTEM_PROMPT = """You are an OCPP 2.1 protocol expert. Answer questions using ONLY
 the provided context from the OCPP specification, Device Model tables, JSON schemas,
 and test suites.
@@ -32,7 +31,10 @@ QUERY_TEMPLATE_STR = """## Context from OCPP 2.1 Knowledge Base
 
 {% for chunk in chunks %}
 ### [{{ chunk.section_title or 'Untitled Section' }}]
-Source: {{ chunk.document_title or 'Unknown Document' }}{% if chunk.page_start %}, page {{ chunk.page_start }}{% endif %}{% if chunk.evidence_layer %}; Evidence layer: {{ chunk.evidence_layer }}{% endif %}{% if chunk.source_type %}; Source type: {{ chunk.source_type }}{% endif %}
+Source: {{ chunk.document_title or 'Unknown Document' }}
+{% if chunk.page_start %}, page {{ chunk.page_start }}{% endif %}
+{% if chunk.evidence_layer %}; Evidence layer: {{ chunk.evidence_layer }}{% endif %}
+{% if chunk.source_type %}; Source type: {{ chunk.source_type }}{% endif %}
 
 {{ chunk.content }}
 
@@ -42,7 +44,8 @@ Source: {{ chunk.document_title or 'Unknown Document' }}{% if chunk.page_start %
 
 ## Instructions
 Return Markdown only.
-Answer with enough depth for implementation and conformance review; do not stop at a one-sentence summary.
+Answer with enough depth for implementation and conformance review; do not stop
+at a one-sentence summary.
 Cite sources in format: [Section Title](Document, page N) when a page is available,
 or [Section Title](Document) when the source has no page number.
 Include relevant entity names (commands, datatypes, variables, enums)."""
@@ -62,6 +65,66 @@ Return Markdown only. Answer concisely with source citations."""
 
 QUERY_TEMPLATE_SHORT = jinja2.Template(
     QUERY_TEMPLATE_SHORT_STR, trim_blocks=True, lstrip_blocks=True,
+)
+
+GOLDEN_ANSWER_SYSTEM_PROMPT = """You are an OCPP 2.1 Ed2 implementation reviewer.
+Generate a source-grounded Markdown answer using ONLY the provided context.
+
+Hard output contract:
+- Return Markdown only. Do not wrap the answer in a code block.
+- Use exactly the requested H2 headings, in the requested order.
+- Do not number, rename, skip, or add top-level H2 headings.
+- If evidence is incomplete, keep the heading and state the gap there.
+- Cite retrieved section titles for concrete protocol claims.
+- Do not invent fields, requirements, message names, or Device Model variables."""
+
+GOLDEN_ANSWER_TEMPLATE_STR = """## Context from OCPP 2.1 Knowledge Base
+
+{% for chunk in chunks %}
+### [{{ chunk.section_title or 'Untitled Section' }}]
+Source: {{ chunk.document_title or 'Unknown Document' }}
+{% if chunk.page_start %}, page {{ chunk.page_start }}{% endif %}
+{% if chunk.evidence_layer %}; Evidence layer: {{ chunk.evidence_layer }}{% endif %}
+{% if chunk.source_type %}; Source type: {{ chunk.source_type }}{% endif %}
+
+{{ chunk.content }}
+
+{% endfor %}
+## Question
+{{ query }}
+
+## Required Markdown Answer Template
+{% for heading in headings %}
+## {{ heading }}
+{% if heading == "Purpose" %}
+Explain the protocol purpose and implementation boundary in 2-4 bullets.
+{% elif heading == "Normative behavior" %}
+Summarize source-grounded required behavior, message/schema constraints, and
+Device Model dependencies.
+{% elif heading == "Implementation guidance" %}
+Give senior backend guidance for validation, persistence, state transitions,
+error handling, and integration sequencing.
+{% elif heading == "Conformance-test focus" %}
+List concrete positive and negative tests, including schema validation and
+unsupported-capability paths.
+{% elif heading == "Evidence gaps" %}
+List missing or weak evidence. If no important gap is visible, state that no
+important gap was found in the retrieved evidence.
+{% endif %}
+
+{% endfor %}
+Required terms to cover when supported by evidence: {{ required_terms }}.
+Useful optional terms when supported by evidence: {{ optional_terms }}.
+
+Final check before responding:
+- The only H2 headings are exactly the required headings above.
+- Every required heading has substantive content.
+- The answer contains source citations such as [Section Title](Document, page N)
+  or [Section Title](Document).
+"""
+
+GOLDEN_ANSWER_TEMPLATE = jinja2.Template(
+    GOLDEN_ANSWER_TEMPLATE_STR, trim_blocks=True, lstrip_blocks=True,
 )
 
 
@@ -86,5 +149,27 @@ def render_generation_messages(
     system, user = render_query_prompt(query, chunks, short=short)
     return [
         {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
+def render_golden_answer_messages(
+    query: str,
+    chunks: list[dict],
+    *,
+    required_headings: tuple[str, ...],
+    required_terms: tuple[str, ...],
+    optional_terms: tuple[str, ...] = (),
+) -> list[dict[str, str]]:
+    """Render strict generation messages for golden-answer evaluation."""
+    user = GOLDEN_ANSWER_TEMPLATE.render(
+        query=query,
+        chunks=chunks,
+        headings=required_headings,
+        required_terms=", ".join(required_terms),
+        optional_terms=", ".join(optional_terms) or "none",
+    )
+    return [
+        {"role": "system", "content": GOLDEN_ANSWER_SYSTEM_PROMPT},
         {"role": "user", "content": user},
     ]

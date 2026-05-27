@@ -13,6 +13,14 @@ import typer
 
 from rag_ocpp.config import get_config, load_config
 from rag_ocpp.embedding.model import EmbeddingModel
+from rag_ocpp.eval.answers import (
+    answer_path_for,
+    build_answer_report,
+    default_golden_answer_cases,
+    filter_answer_cases,
+    score_answer,
+    write_answer_report,
+)
 from rag_ocpp.eval.metrics import EvalQuery, evaluate
 from rag_ocpp.eval.quality import (
     build_report,
@@ -21,6 +29,8 @@ from rag_ocpp.eval.quality import (
     score_case,
     write_report,
 )
+from rag_ocpp.generation.client import DeepSeekClient
+from rag_ocpp.generation.prompt import render_golden_answer_messages
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 
@@ -212,3 +222,150 @@ async def _eval_quality_async(
             raise typer.Exit(2)
     finally:
         await pool.close()
+
+
+def eval_answers_command(
+    top_k: int = typer.Option(12, "--top-k", "-k", help="Retrieved chunks per case."),
+    fail_under: float = typer.Option(0.80, "--fail-under", help="Minimum average score."),
+    topic: list[str] | None = typer.Option(
+        None,
+        "--topic",
+        help="Filter by topic text, e.g. DER, V2X, smart.",
+    ),
+    case_id: list[str] | None = typer.Option(None, "--case-id", help="Run one case ID."),
+    answers_dir: str = typer.Option(
+        "reports/golden_answers",
+        "--answers-dir",
+        help="Directory for generated or cached answer Markdown files.",
+    ),
+    from_answers_dir: bool = typer.Option(
+        False,
+        "--from-answers-dir",
+        help="Score existing Markdown answers without calling the LLM.",
+    ),
+    output: str | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write Markdown or JSON report. Extension decides format.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Print JSON instead of Markdown."),
+    list_cases: bool = typer.Option(False, "--list-cases", help="List cases without running."),
+):
+    """Evaluate generated Markdown implementation answers for golden-answer quality."""
+    asyncio.run(
+        _eval_answers_async(
+            top_k=top_k,
+            fail_under=fail_under,
+            topic=topic or [],
+            case_id=case_id or [],
+            answers_dir=answers_dir,
+            from_answers_dir=from_answers_dir,
+            output=output,
+            json_output=json_output,
+            list_cases=list_cases,
+        )
+    )
+
+
+async def _eval_answers_async(
+    *,
+    top_k: int,
+    fail_under: float,
+    topic: list[str],
+    case_id: list[str],
+    answers_dir: str,
+    from_answers_dir: bool,
+    output: str | None,
+    json_output: bool,
+    list_cases: bool,
+) -> None:
+    load_config()
+    cfg = get_config()
+    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+
+    cases = filter_answer_cases(
+        default_golden_answer_cases(),
+        topics=topic,
+        case_ids=case_id,
+    )
+    if list_cases:
+        for case in cases:
+            typer.echo(f"{case.case_id}\t{case.topic}\t{case.query}")
+        return
+    if not cases:
+        typer.echo("No golden answer cases selected.")
+        raise typer.Exit(1)
+
+    retriever: HybridRetriever | None = None
+    pool: asyncpg.Pool | None = None
+    llm: DeepSeekClient | None = None
+    if not from_answers_dir:
+        pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
+        assert pool
+        embedding = EmbeddingModel(cfg.embedding)
+        embedding.load()
+        reranker = CrossEncoderReranker(cfg.reranker)
+        reranker.load()
+        retriever = HybridRetriever(
+            pool=pool,
+            embedding_model=embedding,
+            reranker=reranker,
+            final_top_k=top_k,
+        )
+        llm = DeepSeekClient(cfg.deepseek)
+
+    try:
+        results = []
+        typer.echo(f"Running {len(cases)} golden answer cases...\n")
+        for index, case in enumerate(cases, start=1):
+            answer_path = answer_path_for(case, answers_dir)
+            if from_answers_dir:
+                if not answer_path.exists():
+                    typer.echo(f"Missing answer file: {answer_path}")
+                    raise typer.Exit(1)
+                answer = answer_path.read_text(encoding="utf-8")
+            else:
+                assert retriever is not None
+                assert llm is not None
+                retrieval = await retriever.retrieve(case.query)
+                chunks = llm.chunks_to_dicts(retrieval)
+                messages = render_golden_answer_messages(
+                    case.query,
+                    chunks,
+                    required_headings=case.required_headings,
+                    required_terms=case.required_terms,
+                    optional_terms=case.optional_terms,
+                )
+                answer = await llm.generate_from_messages(
+                    messages,
+                    temperature=0.0,
+                    max_tokens=max(cfg.deepseek.max_tokens, 6144),
+                )
+                answer_path.parent.mkdir(parents=True, exist_ok=True)
+                answer_path.write_text(answer.rstrip() + "\n", encoding="utf-8")
+
+            result = score_answer(case, answer, answer_path=str(answer_path))
+            results.append(result)
+            status = "PASS" if result.passed else "FAIL"
+            typer.echo(
+                f"[{index}/{len(cases)}] {status} {case.case_id} "
+                f"score={result.score:.3f} missing_headings={result.missing_headings} "
+                f"missing_terms={result.missing_required_terms}"
+            )
+
+        report = build_answer_report(
+            results,
+            suite="ocpp21-ed2-rqk-golden-answers",
+            fail_under=fail_under,
+        )
+        rendered = report.to_json() if json_output else report.to_markdown()
+        typer.echo("\n" + rendered)
+        if output:
+            write_answer_report(report, output)
+            typer.echo(f"Report written: {output}")
+        if not report.passed:
+            raise typer.Exit(2)
+    finally:
+        if pool is not None:
+            await pool.close()

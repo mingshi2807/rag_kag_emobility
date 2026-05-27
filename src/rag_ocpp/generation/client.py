@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -56,8 +56,22 @@ class DeepSeekClient:
         temperature: float | None = None, max_tokens: int | None = None,
     ) -> str:
         """Generate answer from context (non-streaming)."""
-        self._check_api_key()
         messages = render_generation_messages(query, chunks)
+        return await self.generate_from_messages(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    async def generate_from_messages(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+        """Generate answer from a pre-rendered Chat API message list."""
+        self._check_api_key()
         logger.info("DeepSeek generation request: model=%s url=%s", self._model, self.chat_url)
 
         async with httpx.AsyncClient(timeout=120) as client:
