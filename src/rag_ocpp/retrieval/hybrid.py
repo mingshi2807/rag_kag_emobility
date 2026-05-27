@@ -146,6 +146,30 @@ class HybridRetriever:
                 ]
             )
             extra_weights.extend([5.0, 2.5])
+        if is_fusion_query and evidence_layer is None:
+            tasks.extend(
+                [
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _topic_spec_query(query),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="spec",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _topic_dm_query(query),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="device_model",
+                        )
+                    )
+                ]
+            )
+            extra_weights.extend([6.0, 6.0])
         if message_terms:
             for term in message_terms:
                 tasks.append(
@@ -234,14 +258,14 @@ class HybridRetriever:
         if is_dm_query:
             final = _ensure_device_model_coverage(
                 final,
-                [c for c, _ in top_fused],
+                [c for c, _ in fused],
                 self._final_top_k,
             )
         if is_fusion_query:
             final = _ensure_evidence_layer_coverage(
                 query,
                 final,
-                [c for c, _ in top_fused],
+                [c for c, _ in fused],
                 ("spec", "device_model", "schema"),
                 self._final_top_k,
             )
@@ -351,6 +375,30 @@ class HybridRetriever:
                 ]
             )
             extra_weights.extend([5.0, 2.5])
+        if is_fusion_query and evidence_layer is None:
+            tasks.extend(
+                [
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _topic_spec_query(query),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="spec",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _topic_dm_query(query),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="device_model",
+                        )
+                    )
+                ]
+            )
+            extra_weights.extend([6.0, 6.0])
         if message_terms:
             for term in message_terms:
                 tasks.append(
@@ -538,6 +586,47 @@ def _schema_query(query: str) -> str:
     )
 
 
+def _topic_spec_query(query: str) -> str:
+    lowered = query.lower()
+    if "v2x" in lowered:
+        return (
+            "Q Bidirectional Power Transfer V2X energy services operation modes "
+            "central V2X control dynamic CSMS setpoint frequency support load balancing "
+            "generic smart charging rules for V2X"
+        )
+    if "smart charging" in lowered or "smartcharging" in lowered:
+        return (
+            "K Smart Charging related central smart charging ChargingProfile "
+            "SetChargingProfile charging schedule limits profile purpose"
+        )
+    if "der" in lowered:
+        return (
+            "R DER Control related SetDERControl ReportDERControl NotifyDERStartStop "
+            "DER control V2X session hybrid DER control setpoint curve"
+        )
+    return query
+
+
+def _topic_dm_query(query: str) -> str:
+    lowered = query.lower()
+    if "v2x" in lowered:
+        return (
+            "V2XChargingCtrlr SupportedEnergyTransferModes SupportedOperationModes "
+            "Enabled V2X Component Variable EVSE energy transfer services"
+        )
+    if "smart charging" in lowered or "smartcharging" in lowered:
+        return (
+            "SmartChargingCtrlr ChargingProfilePersistence SupportedAdditionalPurposes "
+            "LimitChangeSignificance ProfileStackLevel Component Variable"
+        )
+    if "der" in lowered:
+        return (
+            "DCDERCtrlr ACDERCtrlr Enabled ModesSupported DER Component Variable "
+            "control capabilities"
+        )
+    return query
+
+
 def _extract_message_terms(query: str) -> list[str]:
     message_suffixes = (
         "Request|Response|Notification|Report|Event|Variables|Variable|"
@@ -667,6 +756,33 @@ def _ensure_device_model_coverage(
     return output[:top_k]
 
 
+def _coverage_replacement_position(
+    chunks: list[ScoredChunk],
+    required_layers: tuple[str, ...],
+    coverage_terms: tuple[str, ...],
+) -> int:
+    required = set(required_layers)
+    layer_counts: dict[str, int] = {}
+    for chunk in chunks:
+        layer = (chunk.metadata or {}).get("evidence_layer") or "unknown"
+        layer_counts[layer] = layer_counts.get(layer, 0) + 1
+
+    replaceable_positions = [
+        index
+        for index, chunk in enumerate(chunks)
+        if (
+            ((chunk.metadata or {}).get("evidence_layer") or "unknown") not in required
+            or layer_counts[((chunk.metadata or {}).get("evidence_layer") or "unknown")] > 1
+        )
+    ]
+    if not replaceable_positions:
+        replaceable_positions = list(range(len(chunks)))
+    return min(
+        replaceable_positions,
+        key=lambda index: _coverage_relevance_score(chunks[index], coverage_terms),
+    )
+
+
 def _ensure_evidence_layer_coverage(
     query: str,
     final: list[ScoredChunk],
@@ -721,7 +837,13 @@ def _ensure_evidence_layer_coverage(
         if len(output) < top_k:
             output.append(candidate)
         else:
-            output[-1] = candidate
+            replacement_position = _coverage_replacement_position(
+                output,
+                layers,
+                coverage_terms,
+            )
+            final_by_id.discard(output[replacement_position].chunk_id)
+            output[replacement_position] = candidate
         final_by_id.add(candidate.chunk_id)
 
     return output[:top_k]
@@ -776,6 +898,7 @@ _STOP_QUERY_TERMS = {
 
 def _coverage_relevance_score(chunk: ScoredChunk, terms: tuple[str, ...]) -> float:
     text = _coverage_text(chunk)
+    title = (chunk.section_title or "").lower()
     score = 0.0
     for term in terms:
         if term in text:
@@ -783,11 +906,51 @@ def _coverage_relevance_score(chunk: ScoredChunk, terms: tuple[str, ...]) -> flo
         compact_term = term.replace(" ", "")
         if compact_term != term and compact_term in text.replace(" ", ""):
             score += 0.5
-    title = (chunk.section_title or "").lower()
     for term in terms:
         if term in title:
-            score += 0.5
+            score += 1.5
+    score += _topic_anchor_score(title, text, terms)
+    score -= _off_topic_section_penalty(title, terms)
     return score
+
+
+def _topic_anchor_score(title: str, text: str, terms: tuple[str, ...]) -> float:
+    score = 0.0
+    term_set = set(terms)
+    if "v2x" in term_set:
+        if title.startswith("q") or "bidirectional power transfer" in title:
+            score += 4.0
+        if "v2x" in title:
+            score += 3.0
+        if "v2xchargingctrlr" in text or "v2xchargingparameters" in text:
+            score += 2.0
+    if "smart charging" in term_set or "smartcharging" in term_set:
+        if title.startswith("k") or "smart charging" in title:
+            score += 4.0
+        if "smartchargingctrlr" in text or "chargingprofile" in text:
+            score += 2.0
+    if "der" in term_set:
+        if title.startswith("r") or "der control" in title:
+            score += 4.0
+        if "derctrlr" in text or "dercontrol" in text:
+            score += 2.0
+    return score
+
+
+def _off_topic_section_penalty(title: str, terms: tuple[str, ...]) -> float:
+    if "v2x" in terms and not (
+        title.startswith("q")
+        or "v2x" in title
+        or "bidirectional power transfer" in title
+    ):
+        return 4.0
+    if "v2x" in terms and "reservation" in title:
+        return 3.0
+    if "smart charging" in terms and "reservation" in title:
+        return 2.0
+    if "der" in terms and "reservation" in title:
+        return 2.0
+    return 0.0
 
 
 def _coverage_text(chunk: ScoredChunk) -> str:

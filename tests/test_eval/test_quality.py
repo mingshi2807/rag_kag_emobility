@@ -11,7 +11,11 @@ from rag_ocpp.eval.quality import (
     filter_cases,
     score_case,
 )
-from rag_ocpp.retrieval.hybrid import _ensure_evidence_layer_coverage
+from rag_ocpp.retrieval.hybrid import (
+    _ensure_evidence_layer_coverage,
+    _topic_dm_query,
+    _topic_spec_query,
+)
 from rag_ocpp.retrieval.searchers import ScoredChunk
 
 
@@ -137,6 +141,63 @@ def test_fusion_layer_coverage_replaces_weak_existing_layer_candidate():
     )
 
     assert result[-1].content == "ACDERCtrlr Component Variable DER control"
+
+
+def test_fusion_layer_coverage_prefers_v2x_spec_anchor_over_generic_spec():
+    reservation = _chunk(
+        "V2X energy service generic mention",
+        layer="spec",
+        section_title="2.9. Reservation related",
+    )
+    q_section = _chunk(
+        "Bidirectional Power Transfer V2X energy services",
+        layer="spec",
+        section_title="Q. Bidirectional Power Transfer",
+    )
+
+    result = _ensure_evidence_layer_coverage(
+        "V2X energy services implementation",
+        [reservation],
+        [reservation, q_section],
+        ("spec",),
+        1,
+    )
+
+    assert result[0].section_title == "Q. Bidirectional Power Transfer"
+
+
+def test_topic_spec_query_expands_v2x_to_section_q_anchors():
+    query = _topic_spec_query("Build implementation guidance for V2X energy services")
+
+    assert "Bidirectional Power Transfer" in query
+    assert "operation modes" in query
+    assert "central V2X control" in query
+
+
+def test_topic_dm_query_expands_v2x_to_v2x_charging_controller():
+    query = _topic_dm_query("Build implementation guidance for V2X energy services")
+
+    assert "V2XChargingCtrlr" in query
+    assert "SupportedEnergyTransferModes" in query
+
+
+def test_fusion_layer_coverage_does_not_overwrite_inserted_required_layers():
+    spec = _chunk("Q09 V2X control", layer="spec")
+    dm = _chunk("V2XChargingCtrlr SupportedEnergyTransferModes", layer="device_model")
+    schema = _chunk("NotifyEVChargingNeeds v2xChargingParameters", layer="schema")
+    generic = _chunk("generic V2X mention", layer="unknown")
+
+    result = _ensure_evidence_layer_coverage(
+        "V2X energy services implementation",
+        [spec, generic],
+        [spec, generic, dm, schema],
+        ("spec", "device_model", "schema"),
+        3,
+    )
+
+    layers = {(chunk.metadata or {}).get("evidence_layer") for chunk in result}
+    assert "device_model" in layers
+    assert "schema" in layers
 
 
 def _chunk(
