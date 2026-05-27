@@ -75,6 +75,8 @@ class HybridRetriever:
         is_dm_overview = _is_device_model_overview_query(query)
         message_terms = _extract_message_terms(query)
         is_message_overview = _is_message_overview_query(query, message_terms)
+        is_schema_query = _is_schema_query(query)
+        is_fusion_query = _is_evidence_fusion_query(query)
 
         self._model.embed_query(query)  # warm BGE cache
 
@@ -120,6 +122,30 @@ class HybridRetriever:
                 ]
             )
             extra_weights.extend([4.0, 4.0, 2.0])
+        if (is_schema_query or is_fusion_query) and evidence_layer is None:
+            tasks.extend(
+                [
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _schema_query(query),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="schema",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._vector.search(
+                            _schema_query(query),
+                            top_k=max(10, self._vector_top_k // 2),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="schema",
+                        )
+                    ),
+                ]
+            )
+            extra_weights.extend([5.0, 2.5])
         if message_terms:
             for term in message_terms:
                 tasks.append(
@@ -185,7 +211,11 @@ class HybridRetriever:
             fused = _boost_device_model_candidates(query, fused)
         if message_terms:
             fused = _boost_message_candidates(query, message_terms, fused)
-        top_fused = fused[:max(60 if (is_dm_query or is_message_overview) else 30, self._final_top_k)]
+        top_fused_limit = max(
+            60 if (is_dm_query or is_message_overview or is_fusion_query) else 30,
+            self._final_top_k,
+        )
+        top_fused = fused[:top_fused_limit]
 
         if self._enable_rerank and not is_dm_overview and not is_message_overview:
             candidates = [c for c, _ in top_fused]
@@ -205,6 +235,14 @@ class HybridRetriever:
             final = _ensure_device_model_coverage(
                 final,
                 [c for c, _ in top_fused],
+                self._final_top_k,
+            )
+        if is_fusion_query:
+            final = _ensure_evidence_layer_coverage(
+                query,
+                final,
+                [c for c, _ in top_fused],
+                ("spec", "device_model", "schema"),
                 self._final_top_k,
             )
         if message_terms:
@@ -244,6 +282,8 @@ class HybridRetriever:
         is_dm_overview = _is_device_model_overview_query(query)
         message_terms = _extract_message_terms(query)
         is_message_overview = _is_message_overview_query(query, message_terms)
+        is_schema_query = _is_schema_query(query)
+        is_fusion_query = _is_evidence_fusion_query(query)
 
         tasks = [
             asyncio.create_task(self._vector.search(
@@ -287,6 +327,30 @@ class HybridRetriever:
                 ]
             )
             extra_weights.extend([4.0, 4.0, 2.0])
+        if (is_schema_query or is_fusion_query) and evidence_layer is None:
+            tasks.extend(
+                [
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _schema_query(query),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="schema",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._vector.search(
+                            _schema_query(query),
+                            top_k=max(10, self._vector_top_k // 2),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="schema",
+                        )
+                    ),
+                ]
+            )
+            extra_weights.extend([5.0, 2.5])
         if message_terms:
             for term in message_terms:
                 tasks.append(
@@ -356,14 +420,27 @@ class HybridRetriever:
         top = [c for c, _ in fused[:self._final_top_k]]
         if is_dm_query:
             top = _ensure_device_model_coverage(top, [c for c, _ in fused], self._final_top_k)
+        if is_fusion_query:
+            top = _ensure_evidence_layer_coverage(
+                query,
+                top,
+                [c for c, _ in fused],
+                ("spec", "device_model", "schema"),
+                self._final_top_k,
+            )
         if message_terms:
-            top = _ensure_message_coverage(top, [c for c, _ in fused], message_terms, self._final_top_k)
+            top = _ensure_message_coverage(
+                top,
+                [c for c, _ in fused],
+                message_terms,
+                self._final_top_k,
+            )
         self._final_top_k = save_k
 
         breakdown: dict[str, int] = {}
         for c in top:
             breakdown[c.strategy] = breakdown.get(c.strategy, 0) + 1
- 
+
         return RetrievalResult(
             chunks=top,
             strategy_breakdown=breakdown,
@@ -398,6 +475,28 @@ _DEVICE_MODEL_SPEC_QUERY = (
 
 _MESSAGE_OVERVIEW_TERMS = ("purpose", "what is", "overview", "explain", "role")
 
+_SCHEMA_TERMS = (
+    "schema",
+    "json schema",
+    "payload",
+    "field",
+    "fields",
+    "properties",
+    "validation",
+    "request",
+    "response",
+)
+
+_EVIDENCE_FUSION_TERMS = (
+    "spec",
+    "part 2",
+    "device model",
+    "components",
+    "variables",
+    "json schema",
+    "schema validation",
+)
+
 
 def _is_device_model_query(query: str) -> bool:
     lowered = query.lower()
@@ -417,8 +516,37 @@ def _expand_query(query: str) -> str:
     return f"{query} {_DEVICE_MODEL_EXPANSION}"
 
 
+def _is_schema_query(query: str) -> bool:
+    lowered = query.lower()
+    return any(term in lowered for term in _SCHEMA_TERMS)
+
+
+def _is_evidence_fusion_query(query: str) -> bool:
+    lowered = query.lower()
+    has_dm = "device model" in lowered or ("component" in lowered and "variable" in lowered)
+    has_schema = "schema" in lowered or "json" in lowered or "validation" in lowered
+    has_spec = "spec" in lowered or "part 2" in lowered or "section" in lowered
+    if has_dm and has_schema and has_spec:
+        return True
+    return sum(term in lowered for term in _EVIDENCE_FUSION_TERMS) >= 3
+
+
+def _schema_query(query: str) -> str:
+    return (
+        f"{query} JSON schema Request Response payload field properties required "
+        "definitions enum validation constraints"
+    )
+
+
 def _extract_message_terms(query: str) -> list[str]:
-    candidates = re.findall(r"\b[A-Z][A-Za-z0-9]*(?:Request|Response|Notification|Report|Event|Variables|Variable|Transaction|Certificate|Status)\b", query)
+    message_suffixes = (
+        "Request|Response|Notification|Report|Event|Variables|Variable|"
+        "Transaction|Certificate|Status"
+    )
+    candidates = re.findall(
+        rf"\b[A-Z][A-Za-z0-9]*(?:{message_suffixes})\b",
+        query,
+    )
     terms: list[str] = []
     seen: set[str] = set()
     for candidate in candidates:
@@ -537,6 +665,135 @@ def _ensure_device_model_coverage(
         final_by_id.add(candidate.chunk_id)
 
     return output[:top_k]
+
+
+def _ensure_evidence_layer_coverage(
+    query: str,
+    final: list[ScoredChunk],
+    candidates: list[ScoredChunk],
+    layers: tuple[str, ...],
+    top_k: int,
+) -> list[ScoredChunk]:
+    output = list(final)
+    final_by_id = {chunk.chunk_id for chunk in output}
+    coverage_terms = _coverage_terms(query)
+
+    def layer_positions(layer: str) -> list[int]:
+        return [
+            index
+            for index, chunk in enumerate(output)
+            if (chunk.metadata or {}).get("evidence_layer") == layer
+        ]
+
+    def first_candidate(layer: str) -> ScoredChunk | None:
+        layer_candidates = []
+        for chunk in candidates:
+            if chunk.chunk_id in final_by_id:
+                continue
+            if (chunk.metadata or {}).get("evidence_layer") == layer:
+                layer_candidates.append(chunk)
+        if not layer_candidates:
+            return None
+        return max(
+            layer_candidates,
+            key=lambda chunk: _coverage_relevance_score(chunk, coverage_terms),
+        )
+
+    for layer in layers:
+        positions = layer_positions(layer)
+        candidate = first_candidate(layer)
+        if positions:
+            if candidate is None:
+                continue
+            weakest_position = min(
+                positions,
+                key=lambda index: _coverage_relevance_score(output[index], coverage_terms),
+            )
+            weakest_score = _coverage_relevance_score(output[weakest_position], coverage_terms)
+            candidate_score = _coverage_relevance_score(candidate, coverage_terms)
+            if candidate_score > weakest_score:
+                final_by_id.discard(output[weakest_position].chunk_id)
+                output[weakest_position] = candidate
+                final_by_id.add(candidate.chunk_id)
+            continue
+        if candidate is None:
+            continue
+        if len(output) < top_k:
+            output.append(candidate)
+        else:
+            output[-1] = candidate
+        final_by_id.add(candidate.chunk_id)
+
+    return output[:top_k]
+
+
+def _coverage_terms(query: str) -> tuple[str, ...]:
+    lowered = query.lower()
+    terms: list[str] = []
+    preferred = (
+        "der",
+        "v2x",
+        "smartcharging",
+        "smart charging",
+        "chargingprofile",
+        "setchargingprofile",
+        "control",
+        "energy",
+        "services",
+    )
+    for term in preferred:
+        if term in lowered:
+            terms.append(term)
+    for token in re.findall(r"[A-Za-z][A-Za-z0-9]{2,}", query):
+        token_lower = token.lower()
+        if token_lower in _STOP_QUERY_TERMS or token_lower in terms:
+            continue
+        terms.append(token_lower)
+    return tuple(terms[:12])
+
+
+_STOP_QUERY_TERMS = {
+    "build",
+    "senior",
+    "backend",
+    "implementation",
+    "guidance",
+    "ocpp",
+    "ed2",
+    "using",
+    "part",
+    "spec",
+    "behavior",
+    "device",
+    "model",
+    "components",
+    "variables",
+    "json",
+    "schema",
+    "validation",
+}
+
+
+def _coverage_relevance_score(chunk: ScoredChunk, terms: tuple[str, ...]) -> float:
+    text = _coverage_text(chunk)
+    score = 0.0
+    for term in terms:
+        if term in text:
+            score += 1.0
+        compact_term = term.replace(" ", "")
+        if compact_term != term and compact_term in text.replace(" ", ""):
+            score += 0.5
+    title = (chunk.section_title or "").lower()
+    for term in terms:
+        if term in title:
+            score += 0.5
+    return score
+
+
+def _coverage_text(chunk: ScoredChunk) -> str:
+    metadata = chunk.metadata or {}
+    metadata_text = " ".join(str(value) for value in metadata.values() if value is not None)
+    return " ".join([chunk.content, chunk.section_title or "", metadata_text]).lower()
 
 
 def _ensure_message_coverage(
