@@ -75,3 +75,49 @@ Each case checks:
 - Top evidence includes chunk IDs, section titles, source type, evidence layer, and source path metadata.
 
 The command exits with status `2` when the suite fails. This is intended for CI and regression gating.
+
+## Golden Answer Evaluation
+
+Retrieval quality does not prove generated implementation guidance quality. Use `eval-answers` to generate and score Markdown answers for the fusion implementation cases.
+
+List answer cases:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-answers --list-cases
+```
+
+Generate answers, save them, and write a report:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-answers \
+  --top-k 12 \
+  --fail-under 0.80 \
+  --answers-dir reports/golden_answers \
+  --output reports/ocpp21-ed2-rqk-golden-answers.md
+```
+
+Score existing generated answers without calling the LLM:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-answers \
+  --from-answers-dir \
+  --answers-dir reports/golden_answers \
+  --output reports/ocpp21-ed2-rqk-golden-answers.md
+```
+
+Score the Codex-authored benchmark answers without calling DeepSeek:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-answers \
+  --from-answers-dir \
+  --answers-dir reports/golden_answers_codex-only \
+  --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
+```
+
+The answer gate checks:
+
+- Expected Markdown sections: Purpose, Normative behavior, Implementation guidance, Conformance-test focus, Evidence gaps.
+- Required domain terms for DER, V2X, and Smart Charging implementation answers.
+- Optional implementation-quality terms.
+- Markdown structure and source-citation shape.
+- Refusal or missing-context phrases that indicate the generated answer did not use the retrieved evidence.

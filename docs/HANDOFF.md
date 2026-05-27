@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, and upgraded MCP evidence tools are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools for evidence packs, implementation briefs, corpus status, and filtered search. It is still not enterprise-ready until retrieval eval gates, private-data controls, migrations, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, and golden generated-answer evals are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools and repeatable R/Q/K retrieval and generated-answer gates. It is still not enterprise-ready until private-data controls, migrations, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -32,6 +32,12 @@ Query -> vector + keyword + graph retrieval
 - `docs/ingest.md`, `docs/dev_journey.md`, and `docs/plan_note.md` still describe older BGE-base, 768-dimensional, SDPM/512-token assumptions.
 - `docs/mcp.md` documents nine MCP read tools, including filtered search, evidence packs, implementation briefs, corpus status, chunk/entity lookup, and section search.
 - `.codex/skills/` contains repo-local OCPP RAG/KAG workflow skills for improvement, expert review, query eval, implementation guides, and smoke testing.
+- `docs/query_quality_eval.md` documents `rag eval-quality` and `rag eval-answers` gates for Section R DER, Section Q V2X, and Section K smart charging.
+- `reports/ocpp21-ed2-rqk-quality-baseline.md` records a 12-case retrieval baseline: `12/12` passed, score `0.976`.
+- `reports/ocpp21-ed2-rqk-golden-answers.md` records a 3-case generated Markdown answer baseline: `3/3` passed, score `1.000`.
+- `reports/golden_answers/` stores the generated DER, V2X, and Smart Charging Markdown answers that can be rescored without another LLM call.
+- `reports/ocpp21-ed2-rqk-golden-answers-codex-only.md` records a Codex-authored 3-case generated-answer benchmark: `3/3` passed, score `1.000`.
+- `reports/golden_answers_codex-only/` stores Codex-authored DER, V2X, and Smart Charging answers for offline rescoring without DeepSeek.
 - `tests/test_retrieval/test_vector_search.py` appears to use random document UUIDs instead of the ID returned by `insert_document`, so retrieval integration tests are likely not proving the intended path.
 
 ## Strict Control Rules
@@ -44,14 +50,13 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Smoke-test indexing with `rag index-corpus --no-embed --limit 50`, then inspect `chunks`, `chunk_entities`, and `relationships`.
-2. Run full indexing with `rag index-corpus --batch-size 32` or another batch size that fits local memory.
-3. Repair retrieval integration tests and run a clean `pytest` baseline.
-4. Create and run a versioned OCPP Ed2 Part 2 eval set with Recall@k, MRR, NDCG, source coverage, and answer citation checks.
-5. Add private-knowledge controls: secret handling, log redaction, source access model, data retention, and audit events.
-6. Make migrations explicit instead of relying on manual DB mutation.
-7. Align API and CLI with the upgraded MCP evidence filters and citation metadata.
-8. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, and restore.
+1. Wire `rag eval-quality` and `rag eval-answers` into CI with controlled model/API availability assumptions.
+2. Repair retrieval integration tests and run a clean `pytest` baseline.
+3. Add private-knowledge controls: secret handling, log redaction, source access model, data retention, and audit events.
+4. Make migrations explicit instead of relying on manual DB mutation.
+5. Align API, CLI, and MCP generated-answer behavior with the golden-answer citation and Markdown contract.
+6. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
+7. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, and restore.
 
 ## Verification Commands
 
@@ -61,6 +66,9 @@ mypy src
 pytest
 docker compose up -d
 rag eval data/eval/queries.jsonl --top-k 10
+HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80
+HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers --output reports/ocpp21-ed2-rqk-golden-answers.md
+HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers_codex-only --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
 ```
 
 If Docker, model downloads, or DeepSeek credentials are unavailable, record the gap in this file and keep local static checks as the minimum validation.
@@ -79,3 +87,5 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `src/rag_ocpp/storage/graph.py` - entity, relationship, and graph fallback lookup.
 - `src/rag_ocpp/retrieval/hybrid.py` - retrieval orchestration and strategy fusion.
 - `src/rag_ocpp/mcp/server.py` - agent-facing knowledge tools.
+- `src/rag_ocpp/eval/answers.py` - golden generated-answer cases and Markdown scoring.
+- `src/rag_ocpp/generation/prompt.py` - standard generation prompt plus strict golden-answer prompt.
