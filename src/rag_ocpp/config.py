@@ -10,6 +10,7 @@ from omegaconf import OmegaConf
 
 # ── Configuration dataclasses ────────────────────────────
 
+
 @dataclass
 class PostgresConfig:
     host: str = "localhost"
@@ -22,17 +23,14 @@ class PostgresConfig:
 
     @property
     def dsn(self) -> str:
-        return (
-            f"postgresql://{self.user}:{self.password}"
-            f"@{self.host}:{self.port}/{self.database}"
-        )
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
 
 
 @dataclass
 class DeepSeekConfig:
     api_key: str = ""
-    base_url: str = "https://api.deepseek.com/v1"
-    model: str = "deepseek-chat"
+    base_url: str = "https://api.deepseek.com"
+    model: str = "deepseek-v4-pro"
     temperature: float = 0.1
     max_tokens: int = 4096
 
@@ -68,10 +66,14 @@ class ChunkingStrategy:
 class ChunkingConfig:
     spec: ChunkingStrategy = field(default_factory=lambda: ChunkingStrategy())
     test_suite: ChunkingStrategy = field(
-        default_factory=lambda: ChunkingStrategy(strategy="sentence", chunk_size=256, chunk_overlap=32)
+        default_factory=lambda: ChunkingStrategy(
+            strategy="sentence", chunk_size=256, chunk_overlap=32
+        )
     )
     fallback: ChunkingStrategy = field(
-        default_factory=lambda: ChunkingStrategy(strategy="recursive", chunk_size=1024, chunk_overlap=128)
+        default_factory=lambda: ChunkingStrategy(
+            strategy="recursive", chunk_size=1024, chunk_overlap=128
+        )
     )
 
 

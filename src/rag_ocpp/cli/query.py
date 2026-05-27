@@ -22,12 +22,17 @@ def query_command(
     top_k: int = typer.Option(5, "--top-k", "-k"),
     stream: bool = typer.Option(False, "--stream", "-s"),
     doc_type: str = typer.Option(None, "--doc-type"),
+    evidence_layer: str = typer.Option(
+        None,
+        "--evidence-layer",
+        help="Restrict retrieval to one evidence layer: spec, device_model, schema.",
+    ),
 ):
     """Query the OCPP 2.1 knowledge base."""
-    asyncio.run(_query_async(query_text, top_k, stream, doc_type))
+    asyncio.run(_query_async(query_text, top_k, stream, doc_type, evidence_layer))
 
 
-async def _query_async(query_text, top_k, stream, doc_type):
+async def _query_async(query_text, top_k, stream, doc_type, evidence_layer):
     load_config(); cfg = get_config()
     logging.basicConfig(level=getattr(logging, cfg.logging.level))
 
@@ -41,21 +46,39 @@ async def _query_async(query_text, top_k, stream, doc_type):
         llm = DeepSeekClient(cfg.deepseek)
 
         t0 = time.monotonic()
-        retrieval = await retriever.retrieve(query_text, filters=SearchFilters(doc_type=doc_type))
+        retrieval = await retriever.retrieve(
+            query_text,
+            filters=SearchFilters(doc_type=doc_type, evidence_layer=evidence_layer),
+        )
         rms = int((time.monotonic() - t0) * 1000)
 
         typer.echo(f"\n{len(retrieval.chunks)} chunks ({retrieval.strategy_breakdown}) in {rms}ms\n")
         typer.echo("─" * 60)
         for i, c in enumerate(retrieval.chunks):
+            metadata = c.metadata or {}
+            layer = metadata.get("evidence_layer") or "unknown"
+            source_type = metadata.get("source_type") or "unknown"
             src = f"[{c.section_title or 'Section'}]"
             if c.page_start: src += f" p.{c.page_start}"
-            typer.echo(f"  [{i+1}] {src} ({c.strategy}, {c.score:.3f})")
+            typer.echo(
+                f"  [{i+1}] {src} ({c.strategy}, {c.score:.3f}, "
+                f"{layer}/{source_type})"
+            )
             typer.echo(f"      {c.content[:120]}...")
         typer.echo("─" * 60)
 
-        ctx = [{"content": c.content, "section_title": c.section_title or "Section",
-                "document_title": str(c.document_id)[:36], "page_start": c.page_start}
-               for c in retrieval.chunks]
+        ctx = [
+            {
+                "content": c.content,
+                "section_title": c.section_title or "Section",
+                "document_title": (c.metadata or {}).get("source_path")
+                or str(c.document_id)[:36],
+                "page_start": c.page_start,
+                "evidence_layer": (c.metadata or {}).get("evidence_layer"),
+                "source_type": (c.metadata or {}).get("source_type"),
+            }
+            for c in retrieval.chunks
+        ]
 
         if stream:
             typer.echo("\nAnswer:\n")

@@ -45,6 +45,10 @@ class DeepSeekClient:
     def chat_url(self) -> str:
         return f"{self._base_url}/chat/completions"
 
+    @property
+    def model(self) -> str:
+        return self._model
+
     # ── Non-streaming ────────────────────────────────────
 
     async def generate(
@@ -54,6 +58,7 @@ class DeepSeekClient:
         """Generate answer from context (non-streaming)."""
         self._check_api_key()
         messages = render_generation_messages(query, chunks)
+        logger.info("DeepSeek generation request: model=%s url=%s", self._model, self.chat_url)
 
         async with httpx.AsyncClient(timeout=120) as client:
             response = await client.post(
@@ -84,6 +89,11 @@ class DeepSeekClient:
         """Stream answer via Server-Sent Events."""
         self._check_api_key()
         messages = render_generation_messages(query, chunks, short=True)
+        logger.info(
+            "DeepSeek streaming generation request: model=%s url=%s",
+            self._model,
+            self.chat_url,
+        )
 
         async with httpx.AsyncClient(timeout=300) as client:
             async with client.stream(
@@ -126,9 +136,12 @@ class DeepSeekClient:
             {
                 "content": c.content,
                 "section_title": c.section_title or "Section",
-                "document_title": str(c.document_id)[:36],
+                "document_title": (c.metadata or {}).get("source_path")
+                or str(c.document_id)[:36],
                 "page_start": c.page_start,
                 "page_end": c.page_end,
+                "evidence_layer": (c.metadata or {}).get("evidence_layer"),
+                "source_type": (c.metadata or {}).get("source_type"),
             }
             for c in retrieval_result.chunks
         ]

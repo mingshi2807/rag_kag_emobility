@@ -82,7 +82,7 @@ PDFs / JSONs
 | Fulltext | tsvector (GIN) | — | PostgreSQL native, zero additional infra |
 | Embedding | BAAI/bge-base-en-v1.5 | 768 dims | Top-3 MTEB for size class, query/passage asymmetry |
 | Reranking | BAAI/bge-reranker-base | 270M params | Cross-encoder, +5-10% MRR over embedding-only |
-| Generation | DeepSeek Chat API | deepseek-chat | 64K context, API key available |
+| Generation | DeepSeek Chat API | deepseek-v4-pro | 64K context, API key available |
 | PDF parsing | PyMuPDF + pdfplumber | ≥1.25 / ≥0.11 | Text extraction + table extraction |
 | API | FastAPI + asyncpg + uvicorn | ≥0.115 | Async PostgreSQL, OpenAPI auto-docs, SSE streaming |
 | CLI | typer + rich | ≥0.15 / ≥13 | Subcommands, progress bars |
@@ -153,7 +153,7 @@ All tunable parameters across 6 sections:
 | Section | Key settings |
 |---------|-------------|
 | `postgres` | host, port, database, pool min/max connections, DSN property |
-| `deepseek` | api_key (env), base_url, model=deepseek-chat, temperature=0.1, max_tokens=4096 |
+| `deepseek` | api_key (env), base_url, model=deepseek-v4-pro, temperature=0.1, max_tokens=4096 |
 | `embedding` | model=BAAI/bge-base-en-v1.5, device=cuda, dims=768, batch=32, BGE query prefix |
 | `reranker` | model=BAAI/bge-reranker-base, device=cuda, max_length=512, batch=16 |
 | `chunking` | spec: sdpm/512/64, test_suite: sentence/256/32, fallback: recursive/1024/128 |
@@ -824,7 +824,7 @@ Purpose: DeepSeek Chat API wrapper.
 class DeepSeekClient:
     BASE_URL = "https://api.deepseek.com/v1"
 
-    def __init__(self, api_key: str, model="deepseek-chat"):
+    def __init__(self, api_key: str, model="deepseek-v4-pro"):
         ...
 
     async def generate(

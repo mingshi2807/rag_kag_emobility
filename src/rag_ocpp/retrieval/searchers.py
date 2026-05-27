@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 import asyncpg
@@ -23,6 +24,7 @@ class ScoredChunk:
     page_end: int | None
     score: float
     strategy: str
+    metadata: dict[str, Any] | None = None
 
 
 class VectorSearcher:
@@ -39,17 +41,19 @@ class VectorSearcher:
     async def search(
         self, query: str, *, top_k: int = 20,
         protocol_id: int | None = None, doc_type: str | None = None,
+        evidence_layer: str | None = None, source_type: str | None = None,
         ef_search: int = 100,
     ) -> list[ScoredChunk]:
         qemb = self._model.embed_query(query)
         results = await self._store.vector_search(
             qemb.tolist(), top_k=top_k, protocol_id=protocol_id,
-            doc_type=doc_type, ef_search=ef_search,
+            doc_type=doc_type, evidence_layer=evidence_layer,
+            source_type=source_type, ef_search=ef_search,
         )
         return [
             ScoredChunk(r.chunk_id, r.document_id, r.chunk_index,
                         r.content, r.section_title, r.page_start,
-                        r.page_end, r.similarity, "vector")
+                        r.page_end, r.similarity, "vector", r.metadata)
             for r in results
         ]
 
@@ -66,13 +70,15 @@ class KeywordSearcher:
     async def search(
         self, query: str, *, top_k: int = 10,
         protocol_id: int | None = None, doc_type: str | None = None,
+        evidence_layer: str | None = None, source_type: str | None = None,
     ) -> list[ScoredChunk]:
         results = await self._store.keyword_search(
             query, top_k=top_k, protocol_id=protocol_id, doc_type=doc_type,
+            evidence_layer=evidence_layer, source_type=source_type,
         )
         return [
             ScoredChunk(r.chunk_id, r.document_id, r.chunk_index,
                         r.content, r.section_title, r.page_start,
-                        r.page_end, r.rank, "keyword")
+                        r.page_end, r.rank, "keyword", r.metadata)
             for r in results
         ]

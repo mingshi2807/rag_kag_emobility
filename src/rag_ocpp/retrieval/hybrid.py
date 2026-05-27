@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from dataclasses import dataclass
 
@@ -19,6 +20,8 @@ from rag_ocpp.retrieval.searchers import KeywordSearcher, ScoredChunk, VectorSea
 class SearchFilters:
     protocol_id: int | None = None
     doc_type: str | None = None
+    evidence_layer: str | None = None
+    source_type: str | None = None
 
 
 @dataclass
@@ -65,16 +68,81 @@ class HybridRetriever:
         t0 = time.monotonic()
         pid = filters.protocol_id if filters else None
         dt = filters.doc_type if filters else None
+        evidence_layer = filters.evidence_layer if filters else None
+        source_type = filters.source_type if filters else None
+        search_query = _expand_query(query)
+        is_dm_query = _is_device_model_query(query)
+        is_dm_overview = _is_device_model_overview_query(query)
+        message_terms = _extract_message_terms(query)
+        is_message_overview = _is_message_overview_query(query, message_terms)
 
         self._model.embed_query(query)  # warm BGE cache
 
         tasks: list[asyncio.Task[list[ScoredChunk]]] = [
             asyncio.create_task(self._vector.search(
-                query, top_k=self._vector_top_k, protocol_id=pid, doc_type=dt)),
+                search_query, top_k=self._vector_top_k, protocol_id=pid,
+                doc_type=dt, evidence_layer=evidence_layer, source_type=source_type)),
             asyncio.create_task(self._keyword.search(
-                query, top_k=self._keyword_top_k, protocol_id=pid, doc_type=dt)),
+                search_query, top_k=self._keyword_top_k, protocol_id=pid,
+                doc_type=dt, evidence_layer=evidence_layer, source_type=source_type)),
         ]
-        if self._enable_graph:
+        extra_weights: list[float] = []
+        if is_dm_query and evidence_layer is None:
+            tasks.extend(
+                [
+                    asyncio.create_task(
+                        self._keyword.search(
+                            search_query,
+                            top_k=self._keyword_top_k,
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="device_model",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _DEVICE_MODEL_SPEC_QUERY,
+                            top_k=max(10, self._keyword_top_k // 2),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="spec",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._vector.search(
+                            search_query,
+                            top_k=max(10, self._vector_top_k // 2),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="device_model",
+                        )
+                    ),
+                ]
+            )
+            extra_weights.extend([4.0, 4.0, 2.0])
+        if message_terms:
+            for term in message_terms:
+                tasks.append(
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _message_query(term),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer=evidence_layer,
+                            source_type=source_type,
+                        )
+                    )
+                )
+                extra_weights.append(5.0)
+        use_graph = (
+            self._enable_graph
+            and not is_dm_overview
+            and not is_message_overview
+            and evidence_layer is None
+            and source_type is None
+        )
+        if use_graph:
             tasks.append(asyncio.create_task(self._graph.search(
                 query, top_k=self._graph_top_k, protocol_id=pid or 1,
                 expand_via_traversal=True)))
@@ -84,30 +152,68 @@ class HybridRetriever:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         vec = results[0] if not isinstance(results[0], Exception) else []
         kw = results[1] if not isinstance(results[1], Exception) else []
-        gr = results[2] if len(results) > 2 and not isinstance(results[2], Exception) else []
-        for label, r in zip(["vec","kw","gr"], results):
+        extra_start = 2
+        extra_end = extra_start + len(extra_weights)
+        extra_sets = [
+            r for r in results[extra_start:extra_end] if not isinstance(r, Exception)
+        ]
+        graph_index = extra_end
+        gr = (
+            results[graph_index]
+            if len(results) > graph_index and not isinstance(results[graph_index], Exception)
+            else []
+        )
+        labels = ["vec", "kw"] + [f"dm{i + 1}" for i in range(len(extra_weights))]
+        if use_graph:
+            labels.append("gr")
+        for label, r in zip(labels, results):
             if isinstance(r, Exception):
                 _log.warning("%s search failed: %s", label, r)
-        _log.info("vec=%d kw=%d gr=%d", len(vec), len(kw), len(gr))
+        _log.info(
+            "vec=%d kw=%d dm=%d gr=%d",
+            len(vec),
+            len(kw),
+            sum(len(r) for r in extra_sets),
+            len(gr),
+        )
 
         # Weighted RRF: keyword 3x (tech specs), graph 2x (entity-linked)
-        weights = [1.0, 3.0, 2.0]  # vector, keyword, graph
-        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=weights)
-        top_fused = fused[:max(30, self._final_top_k)]
+        result_sets = [vec, kw] + extra_sets + [gr]
+        weights = [1.0, 3.0] + extra_weights + [2.0]
+        fused = reciprocal_rank_fusion(result_sets, k=self._fusion_k, weights=weights)
+        if is_dm_query:
+            fused = _boost_device_model_candidates(query, fused)
+        if message_terms:
+            fused = _boost_message_candidates(query, message_terms, fused)
+        top_fused = fused[:max(60 if (is_dm_query or is_message_overview) else 30, self._final_top_k)]
 
-        if self._enable_rerank:
+        if self._enable_rerank and not is_dm_overview and not is_message_overview:
             candidates = [c for c, _ in top_fused]
             final = self._reranker.rerank(query, candidates, top_k=self._final_top_k)
         else:
             final = [c for c, _ in top_fused[:self._final_top_k]]
 
         # Graph floor: ensure at least 1 entity-linked chunk if graph returned results
-        if gr and not any(c.strategy == "graph" for c in final):
+        if gr and not is_dm_query and not any(c.strategy == "graph" for c in final):
             best_gr = max(gr, key=lambda c: c.score)
             if final:
                 final[-1] = best_gr
             else:
                 final = [best_gr]
+
+        if is_dm_query:
+            final = _ensure_device_model_coverage(
+                final,
+                [c for c, _ in top_fused],
+                self._final_top_k,
+            )
+        if message_terms:
+            final = _ensure_message_coverage(
+                final,
+                [c for c, _ in top_fused],
+                message_terms,
+                self._final_top_k,
+            )
 
         breakdown: dict[str, int] = {}
         for c in final:
@@ -131,14 +237,79 @@ class HybridRetriever:
         t0 = time.monotonic()
         pid = filters.protocol_id if filters else None
         dt = filters.doc_type if filters else None
+        evidence_layer = filters.evidence_layer if filters else None
+        source_type = filters.source_type if filters else None
+        search_query = _expand_query(query)
+        is_dm_query = _is_device_model_query(query)
+        is_dm_overview = _is_device_model_overview_query(query)
+        message_terms = _extract_message_terms(query)
+        is_message_overview = _is_message_overview_query(query, message_terms)
 
         tasks = [
             asyncio.create_task(self._vector.search(
-                query, top_k=self._vector_top_k, protocol_id=pid, doc_type=dt)),
+                search_query, top_k=self._vector_top_k, protocol_id=pid,
+                doc_type=dt, evidence_layer=evidence_layer, source_type=source_type)),
             asyncio.create_task(self._keyword.search(
-                query, top_k=self._keyword_top_k, protocol_id=pid, doc_type=dt)),
+                search_query, top_k=self._keyword_top_k, protocol_id=pid,
+                doc_type=dt, evidence_layer=evidence_layer, source_type=source_type)),
         ]
-        if self._enable_graph:
+        extra_weights: list[float] = []
+        if is_dm_query and evidence_layer is None:
+            tasks.extend(
+                [
+                    asyncio.create_task(
+                        self._keyword.search(
+                            search_query,
+                            top_k=self._keyword_top_k,
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="device_model",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _DEVICE_MODEL_SPEC_QUERY,
+                            top_k=max(10, self._keyword_top_k // 2),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="spec",
+                        )
+                    ),
+                    asyncio.create_task(
+                        self._vector.search(
+                            search_query,
+                            top_k=max(10, self._vector_top_k // 2),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer="device_model",
+                        )
+                    ),
+                ]
+            )
+            extra_weights.extend([4.0, 4.0, 2.0])
+        if message_terms:
+            for term in message_terms:
+                tasks.append(
+                    asyncio.create_task(
+                        self._keyword.search(
+                            _message_query(term),
+                            top_k=max(12, self._keyword_top_k),
+                            protocol_id=pid,
+                            doc_type=dt,
+                            evidence_layer=evidence_layer,
+                            source_type=source_type,
+                        )
+                    )
+                )
+                extra_weights.append(5.0)
+        use_graph = (
+            self._enable_graph
+            and not is_dm_overview
+            and not is_message_overview
+            and evidence_layer is None
+            and source_type is None
+        )
+        if use_graph:
             tasks.append(asyncio.create_task(self._graph.search(
                 query, top_k=self._graph_top_k, protocol_id=pid or 1,
                 expand_via_traversal=True)))
@@ -148,14 +319,45 @@ class HybridRetriever:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         vec = results[0] if not isinstance(results[0], Exception) else []
         kw = results[1] if not isinstance(results[1], Exception) else []
-        gr = results[2] if len(results) > 2 and not isinstance(results[2], Exception) else []
-        for label, r in zip(["vec","kw","gr"], results):
+        extra_start = 2
+        extra_end = extra_start + len(extra_weights)
+        extra_sets = [
+            r for r in results[extra_start:extra_end] if not isinstance(r, Exception)
+        ]
+        graph_index = extra_end
+        gr = (
+            results[graph_index]
+            if len(results) > graph_index and not isinstance(results[graph_index], Exception)
+            else []
+        )
+        labels = ["vec", "kw"] + [f"dm{i + 1}" for i in range(len(extra_weights))]
+        if use_graph:
+            labels.append("gr")
+        for label, r in zip(labels, results):
             if isinstance(r, Exception):
                 _log.warning("%s search failed: %s", label, r)
-        _log.info("vec=%d kw=%d gr=%d", len(vec), len(kw), len(gr))
+        _log.info(
+            "vec=%d kw=%d dm=%d gr=%d",
+            len(vec),
+            len(kw),
+            sum(len(r) for r in extra_sets),
+            len(gr),
+        )
 
-        fused = reciprocal_rank_fusion([vec, kw, gr], k=self._fusion_k, weights=[1.0, 3.0, 2.0])
+        fused = reciprocal_rank_fusion(
+            [vec, kw] + extra_sets + [gr],
+            k=self._fusion_k,
+            weights=[1.0, 3.0] + extra_weights + [2.0],
+        )
+        if is_dm_query:
+            fused = _boost_device_model_candidates(query, fused)
+        if message_terms:
+            fused = _boost_message_candidates(query, message_terms, fused)
         top = [c for c, _ in fused[:self._final_top_k]]
+        if is_dm_query:
+            top = _ensure_device_model_coverage(top, [c for c, _ in fused], self._final_top_k)
+        if message_terms:
+            top = _ensure_message_coverage(top, [c for c, _ in fused], message_terms, self._final_top_k)
         self._final_top_k = save_k
 
         breakdown: dict[str, int] = {}
@@ -167,3 +369,220 @@ class HybridRetriever:
             strategy_breakdown=breakdown,
             latency_ms=int((time.monotonic() - t0) * 1000),
         )
+
+
+_DEVICE_MODEL_TERMS = (
+    "device model",
+    "dm",
+    "component",
+    "components",
+    "variable",
+    "variables",
+    "variableattribute",
+    "attribute",
+    "attributes",
+    "mutability",
+)
+
+_DEVICE_MODEL_EXPANSION = (
+    "Device Model components variables variable attributes mutability persistence "
+    "configuration monitoring reporting GetVariables SetVariables GetBaseReport "
+    "GetCustomReport ReportBase ComponentVariable Referenced Components and Variables"
+)
+
+_DEVICE_MODEL_SPEC_QUERY = (
+    "Device Model purpose components variables attributes CSMS retrieve report "
+    "Get Variables Get Base Report Get Custom Report Referenced Components Variables "
+    "Configuration Variables replace Configuration Keys"
+)
+
+_MESSAGE_OVERVIEW_TERMS = ("purpose", "what is", "overview", "explain", "role")
+
+
+def _is_device_model_query(query: str) -> bool:
+    lowered = query.lower()
+    return any(term in lowered for term in _DEVICE_MODEL_TERMS)
+
+
+def _is_device_model_overview_query(query: str) -> bool:
+    lowered = query.lower()
+    return _is_device_model_query(query) and any(
+        term in lowered for term in _MESSAGE_OVERVIEW_TERMS
+    )
+
+
+def _expand_query(query: str) -> str:
+    if not _is_device_model_query(query):
+        return query
+    return f"{query} {_DEVICE_MODEL_EXPANSION}"
+
+
+def _extract_message_terms(query: str) -> list[str]:
+    candidates = re.findall(r"\b[A-Z][A-Za-z0-9]*(?:Request|Response|Notification|Report|Event|Variables|Variable|Transaction|Certificate|Status)\b", query)
+    terms: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        base = re.sub(r"(Request|Response)$", "", candidate)
+        if base in seen:
+            continue
+        seen.add(base)
+        terms.append(base)
+    return terms[:3]
+
+
+def _is_message_overview_query(query: str, message_terms: list[str]) -> bool:
+    lowered = query.lower()
+    return bool(message_terms) and any(term in lowered for term in _MESSAGE_OVERVIEW_TERMS)
+
+
+def _message_query(message: str) -> str:
+    return (
+        f"{message} {message}Request {message}Response use case objective purpose "
+        f"requirements sequence status interval precondition postcondition "
+        f"implementation conformance test"
+    )
+
+
+def _boost_device_model_candidates(
+    query: str, fused: list[tuple[ScoredChunk, float]]
+) -> list[tuple[ScoredChunk, float]]:
+    boosted = [(chunk, score + _device_model_boost(query, chunk)) for chunk, score in fused]
+    return sorted(boosted, key=lambda item: item[1], reverse=True)
+
+
+def _device_model_boost(query: str, chunk: ScoredChunk) -> float:
+    metadata = chunk.metadata or {}
+    layer = metadata.get("evidence_layer")
+    title = (chunk.section_title or "").lower()
+    content = chunk.content.lower()
+    boost = 0.0
+    if layer == "device_model":
+        boost += 0.04
+    if layer == "spec" and "referenced components and variables" in content:
+        boost += 0.08
+    if layer == "spec" and title.startswith(("b06", "b07", "b08")):
+        boost += 0.07
+    if "purpose" in query.lower() and "objective(s)" in content:
+        boost += 0.05
+    if "component" in content and "variable" in content:
+        boost += 0.03
+    return boost
+
+
+def _boost_message_candidates(
+    query: str,
+    message_terms: list[str],
+    fused: list[tuple[ScoredChunk, float]],
+) -> list[tuple[ScoredChunk, float]]:
+    boosted = [
+        (chunk, score + _message_boost(query, message_terms, chunk))
+        for chunk, score in fused
+    ]
+    return sorted(boosted, key=lambda item: item[1], reverse=True)
+
+
+def _message_boost(query: str, message_terms: list[str], chunk: ScoredChunk) -> float:
+    title = chunk.section_title or ""
+    title_lower = title.lower()
+    content_lower = chunk.content.lower()
+    boost = 0.0
+    for term in message_terms:
+        term_lower = term.lower()
+        if term_lower in title_lower:
+            boost += 0.20
+        if f"{term_lower}request" in content_lower or f"{term_lower}response" in content_lower:
+            boost += 0.12
+        if term_lower in content_lower:
+            boost += 0.05
+    if "objective(s)" in content_lower:
+        boost += 0.08
+    if "requirement definition" in content_lower:
+        boost += 0.05
+    if "messages, datatypes & enumerations" in content_lower:
+        boost += 0.04
+    if "table of contents" == title_lower:
+        boost -= 0.50
+    return boost
+
+
+def _ensure_device_model_coverage(
+    final: list[ScoredChunk],
+    candidates: list[ScoredChunk],
+    top_k: int,
+) -> list[ScoredChunk]:
+    final_by_id = {chunk.chunk_id for chunk in final}
+    output = list(final)
+
+    def has_layer(layer: str) -> bool:
+        return any((chunk.metadata or {}).get("evidence_layer") == layer for chunk in output)
+
+    def first_candidate(layer: str) -> ScoredChunk | None:
+        for chunk in candidates:
+            if chunk.chunk_id in final_by_id:
+                continue
+            if (chunk.metadata or {}).get("evidence_layer") == layer:
+                return chunk
+        return None
+
+    for layer in ("spec", "device_model"):
+        if has_layer(layer):
+            continue
+        candidate = first_candidate(layer)
+        if candidate is None:
+            continue
+        if len(output) < top_k:
+            output.append(candidate)
+        else:
+            output[-1] = candidate
+        final_by_id.add(candidate.chunk_id)
+
+    return output[:top_k]
+
+
+def _ensure_message_coverage(
+    final: list[ScoredChunk],
+    candidates: list[ScoredChunk],
+    message_terms: list[str],
+    top_k: int,
+) -> list[ScoredChunk]:
+    output = list(final)
+    final_by_id = {chunk.chunk_id for chunk in output}
+
+    def has_title_match() -> bool:
+        return any(
+            any(term.lower() in (chunk.section_title or "").lower() for term in message_terms)
+            for chunk in output
+        )
+
+    def has_use_case_match() -> bool:
+        return any(
+            "objective(s)" in chunk.content.lower()
+            and any(term.lower() in chunk.content.lower() for term in message_terms)
+            for chunk in output
+        )
+
+    def append_or_replace(candidate: ScoredChunk) -> None:
+        if candidate.chunk_id in final_by_id:
+            return
+        if len(output) < top_k:
+            output.append(candidate)
+        else:
+            output[-1] = candidate
+        final_by_id.add(candidate.chunk_id)
+
+    if not has_use_case_match():
+        for chunk in candidates:
+            if (
+                "objective(s)" in chunk.content.lower()
+                and any(term.lower() in chunk.content.lower() for term in message_terms)
+            ):
+                append_or_replace(chunk)
+                break
+
+    if not has_title_match():
+        for chunk in candidates:
+            if any(term.lower() in (chunk.section_title or "").lower() for term in message_terms):
+                append_or_replace(chunk)
+                break
+
+    return output[:top_k]

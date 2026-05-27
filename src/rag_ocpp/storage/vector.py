@@ -36,6 +36,45 @@ def _prepare_tsquery(text: str) -> str:
     return text.replace("_", " ")
 
 
+_STOPWORDS = {
+    "what",
+    "which",
+    "where",
+    "when",
+    "with",
+    "from",
+    "into",
+    "that",
+    "this",
+    "does",
+    "the",
+    "and",
+    "for",
+    "are",
+    "is",
+    "in",
+    "of",
+    "to",
+}
+
+
+def _keyword_terms(query: str) -> list[str]:
+    terms = [
+        term
+        for term in re.findall(r"[A-Za-z][A-Za-z0-9_]{2,}", _prepare_tsquery(query))
+        if term.lower() not in _STOPWORDS
+    ]
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for term in terms:
+        key = term.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(term)
+    return deduped[:12] or [query]
+
+
 # ── Data types ────────────────────────────────────────────
 
 @dataclass
@@ -46,7 +85,7 @@ class ChunkInsert:
     chunk_index: int
     content: str
     content_hash: str | None = None
-    embedding: list[float] | None = None       # bge-base → 768 floats
+    embedding: list[float] | None = None       # bge-large → 1024 floats
     strategy: str = ""
     section_title: str | None = None
     page_start: int | None = None
@@ -70,6 +109,7 @@ class VectorSearchResult:
     page_start: int | None
     page_end: int | None
     similarity: float           # 1 - cosine_distance, higher = more similar
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -83,6 +123,7 @@ class KeywordSearchResult:
     page_start: int | None
     page_end: int | None
     rank: float                 # ts_rank, higher = more relevant
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # ── Store ─────────────────────────────────────────────────
@@ -233,6 +274,8 @@ class VectorStore:
         top_k: int = 20,
         protocol_id: int | None = None,
         doc_type: str | None = None,
+        evidence_layer: str | None = None,
+        source_type: str | None = None,
         ef_search: int = 100,
     ) -> list[VectorSearchResult]:
         """Cosine similarity search via pgvector HNSW index.
@@ -240,39 +283,29 @@ class VectorStore:
         The ``<=>`` operator returns cosine *distance* (0 = identical, 2 = opposite).
         We compute *similarity* = 1 - distance so higher is better.
         """
-        clauses = ["TRUE"]
-        params: list[Any] = [_vec(query_embedding), ef_search, top_k]
-
-        if protocol_id is not None:
-            clauses.append(
-                "document_id IN (SELECT id FROM documents WHERE protocol_id = $4)"
-            )
-            params.append(protocol_id)
-            offset = 1
-        else:
-            offset = 0
-
-        if doc_type is not None:
-            idx = 4 + offset
-            clauses.append(
-                f"document_id IN (SELECT id FROM documents WHERE doc_type = ${idx})"
-            )
-            params.append(doc_type)
-
-        where = " AND ".join(clauses)
-
         # Use single connection for SET + FETCH to share session state
         async with self._pool.acquire() as conn:
             await conn.execute(f"SET LOCAL hnsw.ef_search = {int(ef_search)}")
             rows = await conn.fetch(
                 f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
                        c.section_title, c.page_start, c.page_end,
-                       1.0 - (c.embedding <=> $1) AS similarity
+                       1.0 - (c.embedding <=> $1) AS similarity,
+                       c.metadata
                 FROM chunks c
-                WHERE c.embedding IS NOT NULL AND {where}
+                JOIN documents d ON d.id = c.document_id
+                WHERE c.embedding IS NOT NULL
+                  AND ($3::int IS NULL OR d.protocol_id = $3)
+                  AND ($4::text IS NULL OR d.doc_type = $4)
+                  AND ($5::text IS NULL OR c.metadata->>'evidence_layer' = $5)
+                  AND ($6::text IS NULL OR c.metadata->>'source_type' = $6)
                 ORDER BY c.embedding <=> $1
                 LIMIT $2""",
-                _vec(query_embedding), top_k,
+                _vec(query_embedding),
+                top_k,
+                protocol_id,
+                doc_type,
+                evidence_layer,
+                source_type,
             )
         return [
             VectorSearchResult(
@@ -284,6 +317,7 @@ class VectorStore:
                 page_start=r["page_start"],
                 page_end=r["page_end"],
                 similarity=float(r["similarity"]),
+                metadata=_metadata_dict(r["metadata"]),
             )
             for r in rows
         ]
@@ -295,6 +329,8 @@ class VectorStore:
         top_k: int = 10,
         protocol_id: int | None = None,
         doc_type: str | None = None,
+        evidence_layer: str | None = None,
+        source_type: str | None = None,
     ) -> list[KeywordSearchResult]:
         """PostgreSQL full-text search via tsvector/tsquery.
 
@@ -302,7 +338,10 @@ class VectorStore:
         into a tsquery, then ``ts_rank`` for scoring.
         """
         top_k = max(1, min(int(top_k), 100))
-        clauses = ["c.tsv @@ plainto_tsquery('english', $1)"]
+        clauses = [
+            "c.tsv @@ plainto_tsquery('english', $1)",
+            "COALESCE(c.section_title, '') <> 'Table of Contents'",
+        ]
         params: list[Any] = [_prepare_tsquery(query)]
 
         if protocol_id is not None:
@@ -317,6 +356,14 @@ class VectorStore:
             )
             params.append(doc_type)
 
+        if evidence_layer is not None:
+            clauses.append(f"c.metadata->>'evidence_layer' = ${len(params) + 1}")
+            params.append(evidence_layer)
+
+        if source_type is not None:
+            clauses.append(f"c.metadata->>'source_type' = ${len(params) + 1}")
+            params.append(source_type)
+
         limit_ref = f"${len(params) + 1}"
         params.append(top_k)
         where = " AND ".join(clauses)
@@ -324,7 +371,7 @@ class VectorStore:
         rows = await self._pool.fetch(
             f"""
             SELECT c.id, c.document_id, c.chunk_index, c.content,
-                   c.section_title, c.page_start, c.page_end,
+                   c.section_title, c.page_start, c.page_end, c.metadata,
                    ts_rank(c.tsv, plainto_tsquery('english', $1)) AS rank
             FROM chunks c
             WHERE {where}
@@ -334,17 +381,25 @@ class VectorStore:
             *params,
         )
         # Always supplement with ILIKE (tsquery stemming often misses key terms)
-        words = [w for w in query.split() if len(w) > 2]
-        terms = words[:5] if words else [query]
+        terms = _keyword_terms(query)
         ilike_params: list[Any] = []
         ilike_clauses = []
+        score_parts = []
         for term in terms:
             ilike_params.append(f"%{term}%")
             ref = f"${len(ilike_params)}"
             ilike_clauses.append(
                 f"(c.content ILIKE {ref} OR c.section_title ILIKE {ref})"
             )
+            score_parts.append(
+                f"(CASE WHEN c.section_title ILIKE {ref} THEN 0.5 ELSE 0 END)"
+            )
+            score_parts.append(
+                f"(CASE WHEN c.content ILIKE {ref} THEN 0.1 ELSE 0 END)"
+            )
+        score_expr = " + ".join(score_parts) or "0.3"
         ilike_filters = [f"({' OR '.join(ilike_clauses)})"]
+        ilike_filters.append("COALESCE(c.section_title, '') <> 'Table of Contents'")
         if protocol_id is not None:
             ilike_params.append(protocol_id)
             ilike_filters.append(
@@ -355,16 +410,26 @@ class VectorStore:
             ilike_filters.append(
                 f"c.document_id IN (SELECT id FROM documents WHERE doc_type = ${len(ilike_params)})"
             )
+        if evidence_layer is not None:
+            ilike_params.append(evidence_layer)
+            ilike_filters.append(
+                f"c.metadata->>'evidence_layer' = ${len(ilike_params)}"
+            )
+        if source_type is not None:
+            ilike_params.append(source_type)
+            ilike_filters.append(
+                f"c.metadata->>'source_type' = ${len(ilike_params)}"
+            )
         ilike_params.append(top_k)
         ilike_limit_ref = f"${len(ilike_params)}"
         ilike_where = " AND ".join(ilike_filters)
         ilike_rows = await self._pool.fetch(
             f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
-                   c.section_title, c.page_start, c.page_end,
-                   0.3::real AS rank
+                   c.section_title, c.page_start, c.page_end, c.metadata,
+                   ({score_expr})::real AS rank
             FROM chunks c
             WHERE {ilike_where}
-            ORDER BY c.page_start
+            ORDER BY rank DESC, c.page_start
             LIMIT {ilike_limit_ref}""",
             *ilike_params,
         )
@@ -386,6 +451,7 @@ class VectorStore:
                 page_start=r["page_start"],
                 page_end=r["page_end"],
                 rank=float(r["rank"]),
+                metadata=_metadata_dict(r["metadata"]),
             )
             for r in rows
         ]
@@ -439,3 +505,15 @@ class VectorStore:
             protocol_id,
         )
         return [dict(r) for r in rows]
+
+
+def _metadata_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}

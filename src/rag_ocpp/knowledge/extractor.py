@@ -105,9 +105,14 @@ class EntityExtractor:
 
         import httpx
 
+        logger.info(
+            "DeepSeek extraction request: model=%s url=%s/chat/completions",
+            cfg.deepseek.model,
+            cfg.deepseek.base_url.rstrip("/"),
+        )
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
-                f"{cfg.deepseek.base_url}/chat/completions",
+                f"{cfg.deepseek.base_url.rstrip('/')}/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
                     "model": cfg.deepseek.model,
