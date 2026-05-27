@@ -1,39 +1,43 @@
 ## Purpose
 
-- Provide Codex-only implementation guidance for OCPP 2.1 Ed2 V2X energy services without using a DeepSeek generation request.
-- Treat V2X as a fusion implementation topic: Section Q behavior defines energy-service intent, the Device Model exposes `V2XChargingCtrlr` capability and configuration, and JSON schema validation controls message payload correctness.
-- Help a senior backend developer implement capability discovery, charging-needs processing, schedule/profile decisions, validation, persistence, and conformance tests.
-- Keep the backend source-aware so every V2X decision can be traced to specification, Device Model, or schema evidence.
+- Provide a Codex-assisted, MCP-evidence-grounded benchmark answer for OCPP 2.1 Ed2 V2X energy services without a DeepSeek or OpenAI API generation call from the repo CLI.
+- Treat V2X as a fusion implementation area: Section Q defines authorization and energy-transfer behavior, the Device Model exposes V2X capability, and JSON schemas constrain the Request payloads.
+- Guide a backend that must handle V2X authorization, `NotifyEVChargingNeeds` validation, Device Model capability checks, charging profile decisions, persistence, and conformance tests.
+- Preserve traceability from every implementation decision back to specification, Device Model, or schema evidence.
 
 ## Normative behavior
 
-- V2X energy services must be handled as OCPP 2.1 Ed2 protocol behavior, not only as generic bidirectional charging business logic [Section Q V2X energy services](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_specification.pdf).
-- The backend must read V2X capability from the Device Model before enabling V2X behavior. `V2XChargingCtrlr` and variables such as `SupportedEnergyTransferModes` define which energy transfer modes are available for a charging station [V2XChargingCtrlr / SupportedEnergyTransferModes](data/csv).
-- V2X message handling must validate JSON schema payloads. Requests such as `NotifyEVChargingNeeds` carry charging-needs data, including V2X charging parameters, that must be schema-valid before backend logic accepts it [NotifyEVChargingNeeds.req.chargingNeeds.v2xChargingParameters](data/json).
-- A CSMS should separate capability gating from session negotiation. Device Model support allows the backend to consider V2X, while each Request and Response still requires schema and state validation.
-- Energy-service decisions must preserve evidence that explains why the backend selected, rejected, or constrained a V2X charging mode.
+- Q01 V2X Authorization describes authorization of an EV by the CSMS to start a V2X power transfer loop; the CSMS returns allowed energy transfers and the EV selects the desired transfer [Q01 - V2X Authorization](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_specification.pdf, page 521).
+- The V2X flow includes `AuthorizeRequest`, `TransactionEventRequest`, `NotifyEVChargingNeedsRequest`, and then a CSMS `SetChargingProfileRequest` with a charging schedule containing a V2X operation mode other than `ChargingOnly` [Q01 - V2X Authorization](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_specification.pdf, page 521).
+- Q01 prerequisites include `ISO15118Ctrlr.Enabled = true` and `V2XChargingCtrlr.Enabled = true` [Q01 - V2X Authorization](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_specification.pdf, page 521).
+- `V2XChargingCtrlr.Enabled` is the Device Model variable used by the CSMS to activate or deactivate V2X functionality [V2XChargingCtrlr / Enabled](data/csv/ocpp2.1Ed2/Appendices_CSV_v2.1/dm_components_vars.xlsx).
+- `V2XChargingCtrlr.SupportedEnergyTransferModes` lists energy transfer services supported by the Charging Station [V2XChargingCtrlr / SupportedEnergyTransferModes](data/csv/ocpp2.1Ed2/Appendices_CSV_v2.1/dm_components_vars.xlsx).
+- Q01 requirements include that the Charging Station SHALL report supported energy transfer modes in `V2XChargingCtrlr.SupportedEnergyTransferModes` [Q02 / Q01.FR.32 evidence](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_specification.pdf, page 525).
+- `NotifyEVChargingNeeds.req.chargingNeeds.requestedEnergyTransfer` is required and has enum values including `AC_BPT`, `AC_BPT_DER`, `AC_DER`, `DC_BPT`, `DC_ACDP`, `DC_ACDP_BPT`, and `WPT` [NotifyEVChargingNeeds.req.chargingNeeds.requestedEnergyTransfer](data/json/ocpp2.1Ed2/OCPP-2.1_part3_JSON_schemas/NotifyEVChargingNeedsRequest.json).
+- `NotifyEVChargingNeeds.req.chargingNeeds.v2xChargingParameters` is optional and carries ISO 15118-20 V2X charging/discharging parameters; fields such as `evMinV2XEnergyRequest` and `evMaxV2XEnergyRequest` may be negative or positive according to the schema descriptions [NotifyEVChargingNeeds.req.chargingNeeds.v2xChargingParameters](data/json/ocpp2.1Ed2/OCPP-2.1_part3_JSON_schemas/NotifyEVChargingNeedsRequest.json).
 
 ## Implementation guidance
 
-- Start with a capability cache keyed by charging station identity and connector/EVSE scope where applicable. Populate it from `V2XChargingCtrlr` Device Model variables, especially `SupportedEnergyTransferModes`.
-- Validate all V2X-related Request payloads against the JSON schema before updating session state. This includes nested V2X charging parameters, power limits, schedules, and enumerations.
-- When handling `NotifyEVChargingNeeds`, normalize the requested energy transfer mode, requested power/energy values, and timing constraints into a backend session model.
-- Compare EV charging needs with station capability. Reject or downgrade unsupported energy transfer modes rather than assuming all bidirectional modes are equivalent.
-- Generate downstream charging or V2X control decisions only after schema validation, capability gating, and session-state checks have all passed.
-- Persist the raw message ID, validation result, normalized V2X intent, Device Model snapshot, and citations to the retrieved spec/schema/Device Model evidence.
-- Expose implementation errors with clear categories: schema invalid, unsupported Device Model capability, inconsistent session state, and accepted protocol Response with limited operational effect.
+- Start with capability preflight. Cache `ISO15118Ctrlr.Enabled`, `V2XChargingCtrlr.Enabled`, and `V2XChargingCtrlr.SupportedEnergyTransferModes` before accepting V2X session decisions.
+- Validate `NotifyEVChargingNeeds.req` before updating session state. Enforce required `chargingNeeds.requestedEnergyTransfer` and enum membership, then validate optional `v2xChargingParameters` fields.
+- Normalize charging-needs input into a session model containing requested energy transfer, V2X energy bounds, target energy request, departure time when present, and selected control mode.
+- Compare requested V2X transfer against `SupportedEnergyTransferModes`. A schema-valid Request can still be rejected if the station does not advertise the mode.
+- For authorization flows, distinguish the CSMS decision to allow V2X from the Charging Station and EV negotiation. The backend should store the allowed-energy-transfer result and the later selected transfer reported by `NotifyEVChargingNeeds`.
+- If CSMS will send a profile, generate or select a `SetChargingProfileRequest` only after authorization, schema validation, and Device Model capability checks have passed.
+- Persist the validation result, normalized V2X intent, Device Model snapshot, profile decision, and evidence references.
+- Use explicit failure categories: schema invalid, unsupported energy transfer mode, V2X disabled, ISO 15118 disabled, missing session context, or profile generation failure.
 
 ## Conformance-test focus
 
-- Positive test: station exposes `V2XChargingCtrlr` with `SupportedEnergyTransferModes`, receives a valid `NotifyEVChargingNeeds` Request, and the backend persists a V2X-capable session decision.
-- Negative schema test: invalid or missing V2X charging parameters must fail JSON schema validation before state changes.
-- Negative capability test: a valid V2X Request that uses an unsupported energy transfer mode must be rejected or constrained according to capability evidence.
-- State-machine test: V2X charging needs must not be accepted for a session or connector state where the backend has no active context.
-- Persistence test: stored V2X decisions must include Device Model variables, schema validation output, and source citations.
-- Regression test: run `rag eval-quality --topic V2X --mode fusion --top-k 12` plus `rag eval-answers --from-answers-dir` for the Codex-only answer directory.
+- Positive authorization test: `ISO15118Ctrlr.Enabled` and `V2XChargingCtrlr.Enabled` are true, allowed energy transfer is returned, `NotifyEVChargingNeeds.req` is schema-valid, and backend prepares a V2X-capable profile.
+- Positive Device Model test: `SupportedEnergyTransferModes` contains the requested transfer, and backend accepts the V2X path.
+- Negative schema test: omit `chargingNeeds.requestedEnergyTransfer` or use a value outside the schema enum; backend rejects before state update.
+- Negative capability test: request `AC_BPT_DER` while `SupportedEnergyTransferModes` does not advertise it; backend rejects or constrains the decision.
+- ChargingOnly transition test: when V2X is not yet allowed, backend supports the `ChargingOnly` start path and later V2X enabling flow from Section Q.
+- Persistence test: audit records include authorization outcome, requested energy transfer, V2X parameters, Device Model capability snapshot, and citation metadata.
 
 ## Evidence gaps
 
-- This Codex-only benchmark validates answer structure and expected domain coverage, but it does not yet compare factual precision against a human expert rubric.
-- Field-level V2X scoring should later check exact schema paths, enum names, required fields, and Response semantics.
-- The current baseline proves V2X fusion coverage at a high level; enterprise readiness still requires CI enforcement and expert-approved expected-answer rubrics.
+- MCP evidence confirms the key Q01 flow, Device Model variables, and `NotifyEVChargingNeeds` schema fields, but this answer does not enumerate every V2X operation-mode rule.
+- Future expert scoring should require exact requirement IDs for all LocalFrequency, LocalLoadBalancing, and CentralSetpoint constraints.
+- This benchmark validates Codex-assisted answer quality from MCP evidence; it does not represent an automated OpenAI API provider inside `rag eval-answers`.

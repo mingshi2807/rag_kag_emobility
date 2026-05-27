@@ -36,8 +36,9 @@ Query -> vector + keyword + graph retrieval
 - `reports/ocpp21-ed2-rqk-quality-baseline.md` records a 12-case retrieval baseline: `12/12` passed, score `0.976`.
 - `reports/ocpp21-ed2-rqk-golden-answers.md` records a 3-case generated Markdown answer baseline: `3/3` passed, score `1.000`.
 - `reports/golden_answers/` stores the generated DER, V2X, and Smart Charging Markdown answers that can be rescored without another LLM call.
-- `reports/ocpp21-ed2-rqk-golden-answers-codex-only.md` records a Codex-authored 3-case generated-answer benchmark: `3/3` passed, score `1.000`.
-- `reports/golden_answers_codex-only/` stores Codex-authored DER, V2X, and Smart Charging answers for offline rescoring without DeepSeek.
+- `reports/ocpp21-ed2-rqk-golden-answers-codex-only.md` records a Codex-authored, MCP-evidence-assisted 3-case generated-answer benchmark: `3/3` passed, score `1.000`.
+- `reports/golden_answers_codex-only/` stores Codex-authored DER, V2X, and Smart Charging answers refreshed from MCP evidence for offline rescoring without DeepSeek or OpenAI API calls.
+- `docs/mcp.md` now documents the Codex-assisted manual benchmark workflow: Codex uses MCP evidence tools, writes Markdown answers, and `rag eval-answers --from-answers-dir` scores them offline without DeepSeek or OpenAI API calls.
 - `tests/test_retrieval/test_vector_search.py` appears to use random document UUIDs instead of the ID returned by `insert_document`, so retrieval integration tests are likely not proving the intended path.
 
 ## Strict Control Rules

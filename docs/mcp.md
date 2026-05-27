@@ -165,6 +165,40 @@ For schema-only checks:
 }
 ```
 
+### Codex-Assisted Golden Answer Benchmark
+
+Use this workflow when Codex should generate benchmark Markdown answers from MCP
+evidence without an OpenAI API key and without a DeepSeek generation call.
+
+1. Use MCP evidence tools from Codex:
+   - `inspect_ocpp_corpus`
+   - `build_ocpp_implementation_brief`
+   - `get_ocpp_evidence_pack`
+   - `get_ocpp_chunk` when a cited chunk needs full context
+2. Ask Codex to write one Markdown file per golden answer case under a provider
+   directory, for example `reports/golden_answers_codex-only/`.
+3. Keep the exact golden answer filenames:
+   - `R-FUSION-DER-IMPLEMENTATION-ANSWER.md`
+   - `Q-FUSION-V2X-IMPLEMENTATION-ANSWER.md`
+   - `K-FUSION-SMART-CHARGING-IMPLEMENTATION-ANSWER.md`
+4. Each answer must contain these H2 headings:
+   - `Purpose`
+   - `Normative behavior`
+   - `Implementation guidance`
+   - `Conformance-test focus`
+   - `Evidence gaps`
+5. Score the saved answers offline:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-answers \
+  --from-answers-dir \
+  --answers-dir reports/golden_answers_codex-only \
+  --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
+```
+
+The command above reads Markdown files only. It does not call DeepSeek, OpenAI, or
+any other generation provider.
+
 ---
 
 ## Configuration

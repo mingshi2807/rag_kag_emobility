@@ -17,7 +17,7 @@
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
-- Answer chars: `5260`
+- Answer chars: `6212`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 DER control using Part 2 spec behavior, Device Model components and variables, and JSON schema validation.
 - Answer: `reports/golden_answers_codex-only/R-FUSION-DER-IMPLEMENTATION-ANSWER.md`
 - Matched optional terms: `DCDERCtrlr, SetDERControl, ReportDERControl, validation`
@@ -26,14 +26,14 @@ Answer excerpt:
 
 ## Purpose
 
-- Provide Codex-authored implementation guidance for OCPP 2.1 Ed2 Distributed Energy Resource (DER) control without calling DeepSeek generation.
-- Treat DER control as a fusion feature: Part 2 behavior defines the protocol intent, the Device Model advertises capability and controllable variables, and JSON schema validation constrains each Request and Response payload.
-- Guide a CSMS backend that must decide whether a charging station supports DER control, validate inbound and outbound message payloads, persist control state, and expose source-aware diagnostics.
-- Keep the implementation bounded to evidence available in the OCPP 2.1 Ed2 corpus; unsupported control modes or missing schema fields must be rejected or reported rather than inferred.
+- Provide a Codex-assisted, MCP-evidence-grounded benchmark answer for OCPP 2.1 Ed2 DER control without calling DeepSeek or the OpenAI API from the repo CLI.
+- Treat DER control as a fusion feature: Part 2 requirements define the protocol behavior, Device Model rows define advertised capability, and JSON schemas define the Request and Response validation boundary.
+- Guide a CSMS backend that must discover DER capability, validate `SetDERControl` and `ReportDERControl` payloads, persist accepted control state, and expose conformance-test evidence.
+- Keep the implementation bounded to retrieved MCP evidence; missing fields, enum values, or unsupported modes must be reported as evidence gaps instead of invented.
 
 ## Normative behavior
 
-- DER behavior belongs to the OCPP 2.1 Ed2 DER control functional area and must be implemented from the Sectio
+- A DC bidirectional Charging Station that supports DER control SHALL expose DC inverter DER capabilities in `DCDERCtrlr` variables for each EVSE
 ...
 
 ### Q-FUSION-V2X-IMPLEMENTATION-ANSWER - PASS
@@ -45,7 +45,7 @@ Answer excerpt:
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
-- Answer chars: `4509`
+- Answer chars: `5947`
 - Query: Build implementation guidance for OCPP 2.1 Ed2 V2X energy services using spec rules, Device Model configuration, and JSON schemas.
 - Answer: `reports/golden_answers_codex-only/Q-FUSION-V2X-IMPLEMENTATION-ANSWER.md`
 - Matched optional terms: `V2XChargingCtrlr, NotifyEVChargingNeeds, SupportedEnergyTransferModes, validation`
@@ -54,14 +54,14 @@ Answer excerpt:
 
 ## Purpose
 
-- Provide Codex-only implementation guidance for OCPP 2.1 Ed2 V2X energy services without using a DeepSeek generation request.
-- Treat V2X as a fusion implementation topic: Section Q behavior defines energy-service intent, the Device Model exposes `V2XChargingCtrlr` capability and configuration, and JSON schema validation controls message payload correctness.
-- Help a senior backend developer implement capability discovery, charging-needs processing, schedule/profile decisions, validation, persistence, and conformance tests.
-- Keep the backend source-aware so every V2X decision can be traced to specification, Device Model, or schema evidence.
+- Provide a Codex-assisted, MCP-evidence-grounded benchmark answer for OCPP 2.1 Ed2 V2X energy services without a DeepSeek or OpenAI API generation call from the repo CLI.
+- Treat V2X as a fusion implementation area: Section Q defines authorization and energy-transfer behavior, the Device Model exposes V2X capability, and JSON schemas constrain the Request payloads.
+- Guide a backend that must handle V2X authorization, `NotifyEVChargingNeeds` validation, Device Model capability checks, charging profile decisions, persistence, and conformance tests.
+- Preserve traceability from every implementation decision back to specification, Device Model, or schema evidence.
 
 ## Normative behavior
 
-- V2X energy services must be handled as OCPP 2.1 Ed2 protocol behavior, not only as generic bidirectional charging business logic [Section Q V2X energy services](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_specif
+- Q01 V2X Authorization describes authorization of an EV by the CSMS to start a V2X power transfer loop; the CSMS returns allowed energy transfers and the EV selects the desired transfer [Q01 -
 ...
 
 ### K-FUSION-SMART-CHARGING-IMPLEMENTATION-ANSWER - PASS
@@ -73,7 +73,7 @@ Answer excerpt:
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
-- Answer chars: `4564`
+- Answer chars: `6280`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 smart charging using Section K spec behavior, Device Model variables, and JSON schema validation.
 - Answer: `reports/golden_answers_codex-only/K-FUSION-SMART-CHARGING-IMPLEMENTATION-ANSWER.md`
 - Matched optional terms: `SmartChargingCtrlr, charging schedule, limit, validation`
@@ -82,13 +82,12 @@ Answer excerpt:
 
 ## Purpose
 
-- Provide Codex-only senior backend guidance for OCPP 2.1 Ed2 smart charging without invoking DeepSeek.
-- Treat smart charging as a fusion topic: Section K defines protocol behavior, the Device Model describes `SmartChargingCtrlr` capability and variables, and JSON schemas define `ChargingProfile`, schedule, limit, Request, and Response constraints.
-- Guide implementation of `SetChargingProfile`, schedule validation, profile persistence, capability gating, and conformance-test evidence.
-- Keep the output usable as a benchmark answer for enterprise RAG/KAG quality, not as a replacement for the underlying OCPP specification.
+- Provide a Codex-assisted, MCP-evidence-grounded benchmark answer for OCPP 2.1 Ed2 smart charging without invoking DeepSeek or OpenAI API generation from the repo CLI.
+- Treat smart charging as a fusion topic: Section K behavior defines profile/limit semantics, `SmartChargingCtrlr` Device Model variables define supported capability, and JSON schemas define message payload constraints.
+- Guide backend implementation for `SetChargingProfile`, `ChargingProfile`, schedule/limit validation, Device Model gating, persistence, and conformance testing.
+- Keep implementation advice source-aware and suitable for later expert review.
 
 ## Normative behavior
 
-- Smart charging implementation must follow Section K smart charging behavior and related profile/limit rules [2.10. Smart Charging related](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_specification.pdf).
-- The backend must use the D
+- `SmartChargingCtrlr.Enabled` controls whether smart charging is enabled, and `SmartChargingCtrlr.Available` reports whether smart charging is supported [2.10. Smart Charging related](data/pdf/ocpp2.1Ed2/OCPP-2.1_edition2_part2_spec
 ...

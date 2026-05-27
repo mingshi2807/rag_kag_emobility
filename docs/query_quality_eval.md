@@ -114,6 +114,11 @@ HF_HOME=./models .venv/bin/rag eval-answers \
   --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
 ```
 
+For Codex-assisted manual generation, Codex should first use MCP tools such as
+`build_ocpp_implementation_brief` and `get_ocpp_evidence_pack`, then save the
+Markdown answers in `reports/golden_answers_codex-only/`. The scoring command
+above is offline-only and does not call DeepSeek or OpenAI.
+
 The answer gate checks:
 
 - Expected Markdown sections: Purpose, Normative behavior, Implementation guidance, Conformance-test focus, Evidence gaps.
