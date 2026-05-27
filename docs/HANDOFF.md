@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
-**Date:** 2026-05-26
-**Control status:** First OCPP 2.1 Ed2 source-aware corpus slice implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas. The obvious raw SQL fallback paths have also been parameterized. It is still not enterprise-ready until corpus records are persisted, linked into graph/chunks, evaluated, and protected by private-data controls.
+**Date:** 2026-05-27
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, and upgraded MCP evidence tools are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools for evidence packs, implementation briefs, corpus status, and filtered search. It is still not enterprise-ready until retrieval eval gates, private-data controls, migrations, and broader integration tests are complete.
 
 ## Mission
 
@@ -17,7 +17,7 @@ PDF/JSON -> parser -> cleaner -> metadata -> chunking
 
 Query -> vector + keyword + graph retrieval
       -> weighted RRF -> reranker -> top chunks
-      -> DeepSeek generation / API / CLI / MCP
+      -> DeepSeek generation / API / CLI / MCP evidence tools
 ```
 
 ## Current Evidence Snapshot
@@ -30,7 +30,8 @@ Query -> vector + keyword + graph retrieval
 - `rag index-corpus` indexes stored corpus records into `chunks`, embeddings, graph entities, chunk/entity links, and source-definition relationships.
 - `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` now parameterize the previous keyword/entity ILIKE fallback SQL paths.
 - `docs/ingest.md`, `docs/dev_journey.md`, and `docs/plan_note.md` still describe older BGE-base, 768-dimensional, SDPM/512-token assumptions.
-- `docs/mcp.md` documents six MCP read tools, OCPP-only scope, and stdio-only transport.
+- `docs/mcp.md` documents nine MCP read tools, including filtered search, evidence packs, implementation briefs, corpus status, chunk/entity lookup, and section search.
+- `.codex/skills/` contains repo-local OCPP RAG/KAG workflow skills for improvement, expert review, query eval, implementation guides, and smoke testing.
 - `tests/test_retrieval/test_vector_search.py` appears to use random document UUIDs instead of the ID returned by `insert_document`, so retrieval integration tests are likely not proving the intended path.
 
 ## Strict Control Rules
@@ -49,7 +50,7 @@ Query -> vector + keyword + graph retrieval
 4. Create and run a versioned OCPP Ed2 Part 2 eval set with Recall@k, MRR, NDCG, source coverage, and answer citation checks.
 5. Add private-knowledge controls: secret handling, log redaction, source access model, data retention, and audit events.
 6. Make migrations explicit instead of relying on manual DB mutation.
-7. Align API, CLI, and MCP limits, filters, and citation behavior.
+7. Align API and CLI with the upgraded MCP evidence filters and citation metadata.
 8. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, and restore.
 
 ## Verification Commands
