@@ -64,7 +64,12 @@ class HybridRetriever:
 
     async def retrieve(
         self, query: str, *, filters: SearchFilters | None = None,
+        top_k: int | None = None,
     ) -> RetrievalResult:
+        save_k = self._final_top_k
+        if top_k is not None:
+            self._final_top_k = top_k
+
         t0 = time.monotonic()
         pid = filters.protocol_id if filters else None
         dt = filters.doc_type if filters else None
@@ -281,11 +286,13 @@ class HybridRetriever:
         for c in final:
             breakdown[c.strategy] = breakdown.get(c.strategy, 0) + 1
 
-        return RetrievalResult(
+        result = RetrievalResult(
             chunks=final,
             strategy_breakdown=breakdown,
             latency_ms=int((time.monotonic() - t0) * 1000),
         )
+        self._final_top_k = save_k
+        return result
 
     async def search_only(
         self, query: str, *, filters: SearchFilters | None = None,

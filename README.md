@@ -361,6 +361,7 @@ before project type checking if the Python interpreter is missing `_sqlite3`.
 ## Release Notes
 
 - Current stable tag target: `v0.2.0`
+- API reference: [api.json](api.json)
 - Release notes: [release_notes.md](release_notes.md)
 - Changelog: [changelog.md](changelog.md)
 

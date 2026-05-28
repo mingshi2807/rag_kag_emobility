@@ -7,7 +7,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
 from rag_ocpp.api.dependencies import (
-    get_embedding_model, get_graph_store, get_reranker, get_vector_store,
+    get_embedding_model,
+    get_graph_store,
+    get_reranker,
+    get_vector_store,
 )
 from rag_ocpp.api.schemas import DocumentResponse, EntityResponse, HealthResponse
 from rag_ocpp.embedding.model import EmbeddingModel

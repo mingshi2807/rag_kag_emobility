@@ -1,4 +1,4 @@
-"""POST /query, /query/stream, GET /search — retrieval + generation endpoints."""
+"""Retrieval and generation API endpoints."""
 
 from __future__ import annotations
 
@@ -6,8 +6,9 @@ import json
 import logging
 import time
 import uuid
+from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sse_starlette.sse import EventSourceResponse
 
 from rag_ocpp.api.dependencies import (
@@ -24,6 +25,7 @@ from rag_ocpp.api.schemas import (
 from rag_ocpp.generation.client import DeepSeekClient
 from rag_ocpp.privacy import redact_value
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
+from rag_ocpp.retrieval.searchers import ScoredChunk
 from rag_ocpp.storage.audit import AuditEvent, AuditStore, sensitive_text_ref
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,8 @@ async def query(
 ):
     t0 = time.monotonic()
     correlation_id = str(uuid.uuid4())
+    filters = _filters(req.doc_type, req.evidence_layer, req.source_type)
+
     await _audit(
         audit,
         AuditEvent(
@@ -46,33 +50,14 @@ async def query(
             surface="api",
             action="query",
             correlation_id=correlation_id,
-            metadata={"query": sensitive_text_ref(req.query), "doc_type": req.doc_type},
-        ),
-    )
-    filters = SearchFilters(doc_type=req.doc_type)
-    retrieval = await retriever.retrieve(req.query, filters=filters)
-    await _audit(
-        audit,
-        AuditEvent(
-            event_type="retrieval.completed",
-            surface="api",
-            action="retrieve",
-            correlation_id=correlation_id,
-            latency_ms=retrieval.latency_ms,
-            metadata={
-                "query": sensitive_text_ref(req.query),
-                "chunks": len(retrieval.chunks),
-                "strategy_breakdown": retrieval.strategy_breakdown,
-                "chunk_ids": [str(c.chunk_id) for c in retrieval.chunks],
-            },
+            metadata=_request_metadata(req),
         ),
     )
 
-    context = [
-        {"content": c.content, "section_title": c.section_title or "Section",
-         "document_title": str(c.document_id)[:36], "page_start": c.page_start}
-        for c in retrieval.chunks
-    ]
+    retrieval = await retriever.retrieve(req.query, filters=filters, top_k=req.top_k)
+    await _audit_retrieval(audit, correlation_id, req.query, retrieval)
+
+    context = [_context_chunk(chunk) for chunk in retrieval.chunks]
 
     try:
         answer = await llm.generate(req.query, context)
@@ -93,31 +78,29 @@ async def query(
         )
     except Exception as exc:
         logger.error("Generation failed: %s", redact_value(exc))
-        await _audit(
-            audit,
-            AuditEvent(
-                event_type="generation.failed",
-                surface="api",
-                action="generate",
-                status="failure",
-                correlation_id=correlation_id,
-                metadata={
-                    "query": sensitive_text_ref(req.query),
-                    "model": llm.model,
-                    "error": redact_value(exc, force=True),
-                },
-            ),
-        )
-        answer = f"Error: {exc}"
+        await _audit_generation_failure(audit, correlation_id, req.query, llm.model, exc)
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "generation_failed",
+                "message": "Answer generation failed.",
+                "correlation_id": correlation_id,
+            },
+        ) from exc
 
     return QueryResponse(
-        query=req.query, answer=answer,
-        sources=[ScoredChunkResponse(
-            chunk_id=c.chunk_id, document_id=c.document_id,
-            content=c.content[:500], score=c.score, strategy=c.strategy,
-            section_title=c.section_title, page_start=c.page_start,
-            page_end=c.page_end,
-        ) for c in retrieval.chunks],
+        correlation_id=correlation_id,
+        query=req.query if req.include_query else None,
+        query_ref=sensitive_text_ref(req.query),
+        answer=answer if req.include_answer else None,
+        sources=[
+            _chunk_response(
+                chunk,
+                include_content=req.include_content,
+                max_chars=req.max_chars,
+            )
+            for chunk in retrieval.chunks
+        ],
         strategy_breakdown=retrieval.strategy_breakdown,
         latency_ms=int((time.monotonic() - t0) * 1000),
     )
@@ -131,6 +114,8 @@ async def query_stream(
     audit: AuditStore = Depends(get_audit_store),
 ):
     correlation_id = str(uuid.uuid4())
+    filters = _filters(req.doc_type, req.evidence_layer, req.source_type)
+
     await _audit(
         audit,
         AuditEvent(
@@ -138,39 +123,28 @@ async def query_stream(
             surface="api",
             action="query_stream",
             correlation_id=correlation_id,
-            metadata={"query": sensitive_text_ref(req.query), "doc_type": req.doc_type},
-        ),
-    )
-    filters = SearchFilters(doc_type=req.doc_type)
-    retrieval = await retriever.retrieve(req.query, filters=filters)
-    await _audit(
-        audit,
-        AuditEvent(
-            event_type="retrieval.completed",
-            surface="api",
-            action="retrieve",
-            correlation_id=correlation_id,
-            latency_ms=retrieval.latency_ms,
-            metadata={
-                "query": sensitive_text_ref(req.query),
-                "chunks": len(retrieval.chunks),
-                "strategy_breakdown": retrieval.strategy_breakdown,
-            },
+            metadata=_request_metadata(req),
         ),
     )
 
-    context = [
-        {"content": c.content, "section_title": c.section_title or "Section",
-         "document_title": str(c.document_id)[:36], "page_start": c.page_start}
-        for c in retrieval.chunks
-    ]
+    retrieval = await retriever.retrieve(req.query, filters=filters, top_k=req.top_k)
+    await _audit_retrieval(audit, correlation_id, req.query, retrieval)
+    context = [_context_chunk(chunk) for chunk in retrieval.chunks]
 
     async def events():
-        yield {"event": "sources", "data": json.dumps([
-            {"chunk_id": str(c.chunk_id), "section_title": c.section_title,
-             "page_start": c.page_start, "score": c.score, "strategy": c.strategy}
-            for c in retrieval.chunks
-        ])}
+        yield {
+            "event": "sources",
+            "data": json.dumps(
+                [
+                    _chunk_response(
+                        chunk,
+                        include_content=req.include_content,
+                        max_chars=req.max_chars,
+                    ).model_dump(mode="json")
+                    for chunk in retrieval.chunks
+                ]
+            ),
+        }
         try:
             token_count = 0
             async for token in llm.generate_stream(req.query, context):
@@ -192,22 +166,24 @@ async def query_stream(
                 ),
             )
         except Exception as exc:
-            await _audit(
+            await _audit_generation_failure(
                 audit,
-                AuditEvent(
-                    event_type="generation.failed",
-                    surface="api",
-                    action="generate_stream",
-                    status="failure",
-                    correlation_id=correlation_id,
-                    metadata={
-                        "query": sensitive_text_ref(req.query),
-                        "model": llm.model,
-                        "error": redact_value(exc, force=True),
-                    },
-                ),
+                correlation_id,
+                req.query,
+                llm.model,
+                exc,
+                action="generate_stream",
             )
-            yield {"event": "error", "data": str(exc)}
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {
+                        "error": "generation_failed",
+                        "message": "Answer generation failed.",
+                        "correlation_id": correlation_id,
+                    }
+                ),
+            }
         yield {"event": "done", "data": ""}
 
     return EventSourceResponse(events())
@@ -215,7 +191,17 @@ async def query_stream(
 
 @router.get("/search", response_model=SearchResponse)
 async def search(
-    q: str, top_k: int = 20, doc_type: str | None = None,
+    q: str = Query(..., min_length=1, max_length=2000),
+    top_k: int = Query(8, ge=1, le=20),
+    doc_type: str | None = None,
+    evidence_layer: str | None = Query(None, pattern="^(spec|device_model|schema)$"),
+    source_type: str | None = Query(
+        None,
+        pattern="^(spec_pdf|device_model_table|json_schema|appendix_csv)$",
+    ),
+    max_chars: int = Query(300, ge=0, le=6000),
+    include_content: bool = True,
+    include_query: bool = True,
     retriever: HybridRetriever = Depends(get_hybrid_retriever),
     audit: AuditStore = Depends(get_audit_store),
 ):
@@ -227,34 +213,35 @@ async def search(
             surface="api",
             action="search",
             correlation_id=correlation_id,
-            metadata={"query": sensitive_text_ref(q), "doc_type": doc_type, "top_k": top_k},
-        ),
-    )
-    result = await retriever.search_only(q, filters=SearchFilters(doc_type=doc_type), top_k=top_k)
-    await _audit(
-        audit,
-        AuditEvent(
-            event_type="retrieval.completed",
-            surface="api",
-            action="search_only",
-            correlation_id=correlation_id,
-            latency_ms=result.latency_ms,
             metadata={
                 "query": sensitive_text_ref(q),
-                "chunks": len(result.chunks),
-                "strategy_breakdown": result.strategy_breakdown,
-                "chunk_ids": [str(c.chunk_id) for c in result.chunks],
+                "doc_type": doc_type,
+                "evidence_layer": evidence_layer,
+                "source_type": source_type,
+                "top_k": top_k,
             },
         ),
     )
+
+    result = await retriever.search_only(
+        q,
+        filters=_filters(doc_type, evidence_layer, source_type),
+        top_k=top_k,
+    )
+    await _audit_retrieval(audit, correlation_id, q, result, action="search_only")
+
     return SearchResponse(
-        query=q,
-        results=[ScoredChunkResponse(
-            chunk_id=c.chunk_id, document_id=c.document_id,
-            content=c.content[:300], score=c.score, strategy=c.strategy,
-            section_title=c.section_title, page_start=c.page_start,
-            page_end=c.page_end,
-        ) for c in result.chunks],
+        correlation_id=correlation_id,
+        query=q if include_query else None,
+        query_ref=sensitive_text_ref(q),
+        results=[
+            _chunk_response(
+                chunk,
+                include_content=include_content,
+                max_chars=max_chars,
+            )
+            for chunk in result.chunks
+        ],
         strategy_breakdown=result.strategy_breakdown,
         latency_ms=result.latency_ms,
     )
@@ -265,3 +252,116 @@ async def _audit(audit: AuditStore, event: AuditEvent) -> None:
         await audit.record(event)
     except Exception as exc:
         logger.warning("Audit event write failed: %s", redact_value(exc))
+
+
+async def _audit_retrieval(
+    audit: AuditStore,
+    correlation_id: str,
+    query_text: str,
+    retrieval,
+    *,
+    action: str = "retrieve",
+) -> None:
+    await _audit(
+        audit,
+        AuditEvent(
+            event_type="retrieval.completed",
+            surface="api",
+            action=action,
+            correlation_id=correlation_id,
+            latency_ms=retrieval.latency_ms,
+            metadata={
+                "query": sensitive_text_ref(query_text),
+                "chunks": len(retrieval.chunks),
+                "strategy_breakdown": retrieval.strategy_breakdown,
+                "chunk_ids": [str(chunk.chunk_id) for chunk in retrieval.chunks],
+            },
+        ),
+    )
+
+
+async def _audit_generation_failure(
+    audit: AuditStore,
+    correlation_id: str,
+    query_text: str,
+    model: str,
+    exc: Exception,
+    *,
+    action: str = "generate",
+) -> None:
+    await _audit(
+        audit,
+        AuditEvent(
+            event_type="generation.failed",
+            surface="api",
+            action=action,
+            status="failure",
+            correlation_id=correlation_id,
+            metadata={
+                "query": sensitive_text_ref(query_text),
+                "model": model,
+                "error": redact_value(exc, force=True),
+            },
+        ),
+    )
+
+
+def _filters(
+    doc_type: str | None,
+    evidence_layer: str | None,
+    source_type: str | None,
+) -> SearchFilters:
+    return SearchFilters(
+        doc_type=doc_type,
+        evidence_layer=evidence_layer,
+        source_type=source_type,
+    )
+
+
+def _request_metadata(req: QueryRequest) -> dict[str, Any]:
+    return {
+        "query": sensitive_text_ref(req.query),
+        "doc_type": req.doc_type,
+        "evidence_layer": req.evidence_layer,
+        "source_type": req.source_type,
+        "top_k": req.top_k,
+        "stream": req.stream,
+        "include_content": req.include_content,
+        "include_answer": req.include_answer,
+    }
+
+
+def _context_chunk(chunk: ScoredChunk) -> dict[str, Any]:
+    metadata = chunk.metadata or {}
+    return {
+        "content": chunk.content,
+        "section_title": chunk.section_title or "Section",
+        "document_title": metadata.get("source_path") or str(chunk.document_id)[:36],
+        "page_start": chunk.page_start,
+        "evidence_layer": metadata.get("evidence_layer"),
+        "source_type": metadata.get("source_type"),
+    }
+
+
+def _chunk_response(
+    chunk: ScoredChunk,
+    *,
+    include_content: bool,
+    max_chars: int,
+) -> ScoredChunkResponse:
+    metadata = chunk.metadata or {}
+    content = chunk.content[:max_chars] if include_content and max_chars > 0 else None
+    return ScoredChunkResponse(
+        chunk_id=chunk.chunk_id,
+        document_id=chunk.document_id,
+        content=content,
+        score=chunk.score,
+        strategy=chunk.strategy,
+        section_title=chunk.section_title,
+        page_start=chunk.page_start,
+        page_end=chunk.page_end,
+        evidence_layer=metadata.get("evidence_layer"),
+        source_type=metadata.get("source_type"),
+        source_path=metadata.get("source_path"),
+        content_hash=metadata.get("content_hash"),
+    )

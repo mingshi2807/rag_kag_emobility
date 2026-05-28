@@ -1,6 +1,6 @@
 [project]
 name = "rag-kag-ocpp"
-version = "0.1.0"
+version = "0.2.0"
 description = "RAG/KAG pipeline for OCPP 2.1 enterprise knowledge — chunking, embedding, vector+graph retrieval, generation"
 requires-python = ">=3.12"
 readme = "README.md"

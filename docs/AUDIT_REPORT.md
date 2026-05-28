@@ -8,7 +8,7 @@
 
 The repository is a credible prototype, not an enterprise-grade private knowledge platform yet.
 
-The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, explicit DB migrations, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader API/MCP contract tests, and operational runbooks.
+The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader API/MCP contract tests, and operational runbooks.
 
 ## Strict Criteria
 
@@ -19,7 +19,7 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 | Private-data protection | Partial | Redacted logging and privacy-preserving audit events exist. | Source ACLs, retention/deletion policy, and tenant isolation are not complete. |
 | Reproducibility | Partial | Docker, CLI, migration commands, and install docs exist. | Docker bootstrap still uses `schema.sql`; broader rollback, backup, restore, and CI migration gates are not complete. |
 | Evaluation governance | Partial | Retrieval and generated-answer eval reports exist for R/Q/K topics. | Eval gates are not wired to CI and coverage beyond R/Q/K remains limited. |
-| Operational reliability | Weak | API, CLI, MCP are present. | No runbook for backup, restore, re-index, rollback, model cache, or cold-start management. |
+| Operational reliability | Partial | API, CLI, MCP, migrations, and API contract tests are present. | No runbook for backup, restore, re-index, rollback, model cache, or cold-start management. |
 | Security posture | Partial | Basic env-based secrets, SQL parameterization hardening, redacted logs, and audit events exist. | Source ACLs, retention controls, and API/MCP contract tests are still incomplete. |
 | Documentation accuracy | Weak | `/docs` has useful design notes. | Several docs contradict current config and schema. |
 
@@ -33,6 +33,8 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 - `docs/ingest.md` describes SDPM chunking, 512-token chunks, 64 overlap, BGE-base, GPU batch 256, and 768-dimensional memory estimates.
 - `docs/dev_journey.md` describes BGE-base 768-dimensional architecture and SDPM 512/64 chunking.
 - `docs/HANDOFF.md` reports implemented retrieval quality evals, generated-answer evals, redacted logging, audit events, and migrations.
+- `api.json` exports the FastAPI reference as OpenAPI `3.0.3`.
+- `tests/test_api/` covers API query/search contract behavior and exported OpenAPI schema drift.
 - `docs/mcp.md` documents nine MCP read tools and the Codex-assisted manual benchmark workflow.
 - `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` parameterize keyword/entity fallback SQL paths.
 - `tests/test_retrieval/test_vector_search.py` uses inserted document UUIDs and deterministic 1024-dimensional embeddings.
@@ -80,9 +82,9 @@ The system handles proprietary protocol documents and generated answers. Redacte
 **Severity:** High
 **Confidence:** Medium
 
-Tests exist for chunking, ingestion cleaning, metadata, extraction, vector search, audit events, and migrations. Docker-backed tests may skip entirely. API/MCP contract tests and broader generation safety tests are still incomplete.
+Tests exist for chunking, ingestion cleaning, metadata, extraction, vector search, audit events, migrations, and FastAPI query/search contracts. Docker-backed tests may skip entirely. MCP contract tests and broader generation safety tests are still incomplete.
 
-**Required improvement:** Add API/MCP contract tests, broaden eval tests, and record skipped integration tests as an explicit CI signal.
+**Required improvement:** Add MCP contract tests, broaden eval tests, and record skipped integration tests as an explicit CI signal.
 
 ### 6. Operations Are Under-Specified
 

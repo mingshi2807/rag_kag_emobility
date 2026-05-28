@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, and explicit DB migrations are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, and a migration ledger for controlled schema setup. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, and upgraded FastAPI query/search contracts are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, and OpenAPI 3.0.3 API reference output. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -46,6 +46,8 @@ Query -> vector + keyword + graph retrieval
 - `src/rag_ocpp/privacy.py` provides reusable redaction helpers and a logging filter. API, CLI, MCP, embedding batch, corpus, eval, and high-risk extraction logs now install or use redacted logging so secrets and long private payloads are masked before logs. Redaction is enabled by default and can be disabled only for controlled local debugging with `LOG_REDACTION_ENABLED=false`.
 - `src/rag_ocpp/storage/audit.py` and `audit_events` provide privacy-preserving audit events for query, retrieval, generation, corpus ingestion/indexing, and MCP access. Audit metadata stores hashes, lengths, IDs, counts, status, latency, and redacted metadata; it must not store raw private text.
 - `docs/private_knowledge_controls.md` defines the current redaction and audit-event controls.
+- `src/rag_ocpp/api/routes/query.py` aligns FastAPI query/search with source-aware filters (`evidence_layer`, `source_type`), request `top_k`, content controls, correlation IDs, redacted errors, and source metadata in chunk responses.
+- `api.json` exports the FastAPI reference as OpenAPI `3.0.3` for API consumers.
 
 ## Strict Control Rules
 
@@ -57,11 +59,12 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Align API, CLI, and MCP generated-answer behavior with the golden-answer citation and Markdown contract.
-2. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
-3. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
-4. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
-5. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
+1. Finish API/CLI/MCP generated-answer parity with the golden-answer citation and Markdown contract.
+2. Decide whether FastAPI `/ingest` remains legacy/admin-only or becomes source-aware corpus ingestion.
+3. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
+4. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
+5. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
+6. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
 
 ## Verification Commands
 
@@ -74,6 +77,7 @@ rag eval data/eval/queries.jsonl --top-k 10
 .venv/bin/pytest tests/test_privacy.py tests/test_retrieval/test_vector_search.py -q
 .venv/bin/pytest tests/test_storage/test_audit.py -q
 .venv/bin/pytest tests/test_storage/test_migrations.py -q
+.venv/bin/pytest tests/test_api -q
 .venv/bin/rag migrate-status
 HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers --output reports/ocpp21-ed2-rqk-golden-answers.md
@@ -99,5 +103,7 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `src/rag_ocpp/storage/graph.py` - entity, relationship, and graph fallback lookup.
 - `src/rag_ocpp/retrieval/hybrid.py` - retrieval orchestration and strategy fusion.
 - `src/rag_ocpp/mcp/server.py` - agent-facing knowledge tools.
+- `src/rag_ocpp/api/routes/query.py` - source-aware FastAPI query/search access.
+- `api.json` - exported OpenAPI 3.0.3 API reference.
 - `src/rag_ocpp/eval/answers.py` - golden generated-answer cases and Markdown scoring.
 - `src/rag_ocpp/generation/prompt.py` - standard generation prompt plus strict golden-answer prompt.
