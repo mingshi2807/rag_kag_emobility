@@ -12,6 +12,7 @@ import typer
 from rag_ocpp.config import get_config, load_config
 from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.generation.client import DeepSeekClient
+from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 
@@ -34,7 +35,7 @@ def query_command(
 
 async def _query_async(query_text, top_k, stream, doc_type, evidence_layer):
     load_config(); cfg = get_config()
-    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
 
     pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
     assert pool

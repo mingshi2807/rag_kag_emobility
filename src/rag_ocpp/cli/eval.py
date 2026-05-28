@@ -31,6 +31,7 @@ from rag_ocpp.eval.quality import (
 )
 from rag_ocpp.generation.client import DeepSeekClient
 from rag_ocpp.generation.prompt import render_golden_answer_messages
+from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 
@@ -49,7 +50,7 @@ def eval_retrieval(
 async def _eval_async(queries_path: str, top_k: int):
     load_config()
     cfg = get_config()
-    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
 
     path = Path(queries_path)
     if not path.exists():
@@ -161,7 +162,7 @@ async def _eval_quality_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
 
     cases = filter_cases(default_quality_cases(), topics=topic, modes=mode)
     if list_cases:
@@ -282,7 +283,7 @@ async def _eval_answers_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
 
     cases = filter_answer_cases(
         default_golden_answer_cases(),

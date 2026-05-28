@@ -23,6 +23,7 @@ from rag_ocpp.corpus.ocpp21 import (
     parse_spec_pdf_sections,
 )
 from rag_ocpp.embedding.model import EmbeddingModel
+from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.storage.corpus import (
     CorpusRecordInsert,
     CorpusStore,
@@ -78,7 +79,7 @@ async def _corpus_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
 
     planned = _planned_sources(
         spec_pdf=spec_pdf,
@@ -142,7 +143,7 @@ async def _index_corpus_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
 
     pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
     try:

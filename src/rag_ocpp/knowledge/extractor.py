@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from rag_ocpp.config import get_config
 from rag_ocpp.knowledge.entities import extract_pattern_matches
+from rag_ocpp.privacy import redact_text, redact_value
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ class ExtractionResult:
 
 # ── LLM prompt ────────────────────────────────────────────
 
-_EXTRACTION_SYSTEM_PROMPT = """You are an OCPP 2.1 protocol expert. Extract entities and relationships
-from technical specification text.
+_EXTRACTION_SYSTEM_PROMPT = """You are an OCPP 2.1 protocol expert.
+Extract entities and relationships from technical specification text.
 
 Entity types: command, datatype, component, variable, enum, functional_block, error_code.
 Relationships: uses, responds_to, requires, extends, belongs_to.
@@ -152,7 +153,7 @@ class EntityExtractor:
                 entities = self._merge_entities(entities, llm_entities)
                 relations = llm_relations
             except Exception as exc:
-                logger.warning("LLM extraction failed: %s", exc)
+                logger.warning("LLM extraction failed: %s", redact_value(exc))
 
         result = ExtractionResult(
             entities=entities,
@@ -206,7 +207,10 @@ class EntityExtractor:
                 # Last resort: regex-extract entities array
                 data = _extract_partial_json(content)
                 if not data:
-                    logger.warning("LLM returned invalid JSON: %.200s", content)
+                    logger.warning(
+                        "LLM returned invalid JSON: %s",
+                        redact_text(content),
+                    )
                     return [], []
 
         type_map = {

@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from rag_ocpp.config import AppConfig, load_config
 from rag_ocpp.embedding.model import EmbeddingModel
+from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     if config is None:
         config = load_config()
 
-    logging.basicConfig(
+    configure_redacted_logging(
         level=getattr(logging, config.logging.level, logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )

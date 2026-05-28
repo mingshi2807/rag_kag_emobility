@@ -10,6 +10,7 @@ import asyncpg
 from tqdm import tqdm
 
 from rag_ocpp.embedding.model import EmbeddingModel
+from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.storage.vector import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -117,13 +118,12 @@ class BatchEmbedder:
 # ── Standalone entry point ──────────────────────────────
 
 async def _main() -> None:
-    import os
-    from rag_ocpp.config import load_config, get_config
+    from rag_ocpp.config import get_config, load_config
 
     load_config()
     cfg = get_config()
 
-    logging.basicConfig(
+    configure_redacted_logging(
         level=getattr(logging, cfg.logging.level),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )

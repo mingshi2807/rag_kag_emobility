@@ -20,6 +20,7 @@ from rag_ocpp.ingestion.metadata import OCPPMetadataExtractor
 from rag_ocpp.ingestion.parser import DocumentParser
 from rag_ocpp.knowledge.extractor import EntityExtractor
 from rag_ocpp.knowledge.linker import EntityLinker
+from rag_ocpp.privacy import configure_redacted_logging, redact_value
 from rag_ocpp.storage.vector import ChunkInsert, VectorStore
 
 
@@ -43,7 +44,7 @@ async def _ingest_async(
     no_entities: bool, no_embed: bool, dry_run: bool,
 ) -> None:
     load_config(); cfg = get_config()
-    logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
 
     files = sorted(path.rglob("*")) if path.is_dir() else [path]
     files = [f for f in files if f.suffix.lower() in (".pdf", ".json")]
@@ -71,7 +72,7 @@ async def _ingest_async(
                     tc += cc; te += ce
                     progress.console.print(f"  OK {cc} chunks, {ce} entities\n")
                 except Exception as exc:
-                    progress.console.print(f"  [red]FAIL: {exc}[/red]\n")
+                    progress.console.print(f"  [red]FAIL: {redact_value(exc)}[/red]\n")
                 progress.advance(task)
 
         typer.echo(f"Done. {tc} chunks, {te} entities from {len(files)} docs.")

@@ -15,6 +15,7 @@ from mcp.types import TextContent, Tool
 
 from rag_ocpp.config import get_config, load_config
 from rag_ocpp.embedding.model import EmbeddingModel
+from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 from rag_ocpp.storage.graph import GraphStore
@@ -498,7 +499,7 @@ def _json_block(value: Any) -> str:
 
 
 async def main():
-    logging.basicConfig(level=logging.WARNING)
+    configure_redacted_logging(level=logging.WARNING)
     srv = Server("rag-kag-ocpp")
     ocpp = OcppKnowledgeServer(); await ocpp.start()
 

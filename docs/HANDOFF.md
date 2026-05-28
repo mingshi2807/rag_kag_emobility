@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, and golden generated-answer evals are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools and repeatable R/Q/K retrieval and generated-answer gates. It is still not enterprise-ready until private-data controls, migrations, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, and first redacted logging controls are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools and repeatable R/Q/K retrieval and generated-answer gates. It is still not enterprise-ready until source access controls, retention/deletion policy, audit events, migrations, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -39,7 +39,8 @@ Query -> vector + keyword + graph retrieval
 - `reports/ocpp21-ed2-rqk-golden-answers-codex-only.md` records a Codex-authored, MCP-evidence-assisted 3-case generated-answer benchmark: `3/3` passed, score `1.000`.
 - `reports/golden_answers_codex-only/` stores Codex-authored DER, V2X, and Smart Charging answers refreshed from MCP evidence for offline rescoring without DeepSeek or OpenAI API calls.
 - `docs/mcp.md` now documents the Codex-assisted manual benchmark workflow: Codex uses MCP evidence tools, writes Markdown answers, and `rag eval-answers --from-answers-dir` scores them offline without DeepSeek or OpenAI API calls.
-- `tests/test_retrieval/test_vector_search.py` appears to use random document UUIDs instead of the ID returned by `insert_document`, so retrieval integration tests are likely not proving the intended path.
+- `tests/test_retrieval/test_vector_search.py` now uses inserted document UUIDs and deterministic 1024-dimensional embeddings, so vector, keyword, pending-embedding, and delete paths prove the intended storage contract.
+- `src/rag_ocpp/privacy.py` provides reusable redaction helpers and a logging filter. API, CLI, MCP, embedding batch, corpus, eval, and high-risk extraction logs now install or use redacted logging so secrets and long private payloads are masked before logs.
 
 ## Strict Control Rules
 
@@ -51,13 +52,12 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Wire `rag eval-quality` and `rag eval-answers` into CI with controlled model/API availability assumptions.
-2. Repair retrieval integration tests and run a clean `pytest` baseline.
-3. Add private-knowledge controls: secret handling, log redaction, source access model, data retention, and audit events.
-4. Make migrations explicit instead of relying on manual DB mutation.
-5. Align API, CLI, and MCP generated-answer behavior with the golden-answer citation and Markdown contract.
-6. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
-7. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, and restore.
+1. Extend private-knowledge controls beyond redacted logging: source access model, retention/deletion policy, audit events, and secret-handling documentation.
+2. Make migrations explicit instead of relying on manual DB mutation.
+3. Align API, CLI, and MCP generated-answer behavior with the golden-answer citation and Markdown contract.
+4. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
+5. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, and restore.
+6. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
 
 ## Verification Commands
 
@@ -67,6 +67,7 @@ mypy src
 pytest
 docker compose up -d
 rag eval data/eval/queries.jsonl --top-k 10
+.venv/bin/pytest tests/test_privacy.py tests/test_retrieval/test_vector_search.py -q
 HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers --output reports/ocpp21-ed2-rqk-golden-answers.md
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers_codex-only --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
