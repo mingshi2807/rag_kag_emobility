@@ -1,7 +1,6 @@
 """Shared test fixtures — testcontainers PostgreSQL, async pool, stores."""
 
 import asyncio
-from pathlib import Path
 
 import asyncpg
 import pytest
@@ -50,7 +49,10 @@ async def pool(postgres_container):
         await conn.execute("""CREATE TABLE IF NOT EXISTS protocols (
             id SMALLINT PRIMARY KEY, name TEXT UNIQUE NOT NULL,
             full_name TEXT NOT NULL, namespace TEXT NOT NULL)""")
-        await conn.execute("INSERT INTO protocols VALUES (1,'ocpp21','OCPP 2.1','ocpp') ON CONFLICT DO NOTHING")
+        await conn.execute(
+            "INSERT INTO protocols VALUES "
+            "(1,'ocpp21','OCPP 2.1','ocpp') ON CONFLICT DO NOTHING"
+        )
         await conn.execute("""CREATE TABLE IF NOT EXISTS entity_types (
             id SMALLINT, protocol_id SMALLINT REFERENCES protocols(id),
             name TEXT NOT NULL, PRIMARY KEY (id, protocol_id))""")
@@ -70,9 +72,9 @@ async def pool(postgres_container):
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
             chunk_index INT NOT NULL, content TEXT NOT NULL, content_hash TEXT NOT NULL,
-            embedding vector, strategy TEXT NOT NULL DEFAULT 'semantic',
+            embedding vector(1024), strategy TEXT NOT NULL DEFAULT 'semantic',
             section_title TEXT, page_start INT, page_end INT,
-            token_count INT, metadata JSONB,
+            token_count INT, metadata JSONB, created_at TIMESTAMPTZ DEFAULT now(),
             tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
             UNIQUE (document_id, chunk_index))""")
         await conn.execute("""CREATE TABLE IF NOT EXISTS entities (
@@ -115,4 +117,7 @@ async def graph_store(pool) -> GraphStore:
 async def cleanup(pool):
     yield
     async with pool.acquire() as conn:
-        await conn.execute("TRUNCATE chunk_entities, relationships, entities, chunks, documents, query_log CASCADE")
+        await conn.execute(
+            "TRUNCATE chunk_entities, relationships, entities, chunks, "
+            "documents, query_log CASCADE"
+        )
