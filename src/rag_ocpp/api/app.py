@@ -23,6 +23,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     configure_redacted_logging(
         level=getattr(logging, config.logging.level, logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        enabled=config.logging.redaction_enabled,
     )
 
     @asynccontextmanager

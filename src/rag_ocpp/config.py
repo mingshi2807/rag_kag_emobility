@@ -2,11 +2,9 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
 
 from dotenv import load_dotenv
 from omegaconf import OmegaConf
-
 
 # ── Configuration dataclasses ────────────────────────────
 
@@ -97,6 +95,7 @@ class RetrievalConfig:
 @dataclass
 class LoggingConfig:
     level: str = "INFO"
+    redaction_enabled: bool = True
 
 
 @dataclass
@@ -158,6 +157,14 @@ def _dict_to_dataclass(raw: dict, cls: type) -> object:
         value = raw.get(field_name)
         if isinstance(value, dict) and hasattr(field_def.type, "__dataclass_fields__"):
             kwargs[field_name] = _dict_to_dataclass(value, field_def.type)
+        elif field_def.type is bool and isinstance(value, str):
+            kwargs[field_name] = value.strip().lower() not in {
+                "0",
+                "false",
+                "no",
+                "off",
+                "disabled",
+            }
         else:
             kwargs[field_name] = value
     return cls(**kwargs)

@@ -126,6 +126,7 @@ async def _main() -> None:
     configure_redacted_logging(
         level=getattr(logging, cfg.logging.level),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        enabled=cfg.logging.redaction_enabled,
     )
 
     pool = await asyncpg.create_pool(

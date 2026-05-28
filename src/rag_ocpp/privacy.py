@@ -29,6 +29,19 @@ _SENSITIVE_KEYS = {
     "token",
 }
 
+_REDACTION_ENABLED = True
+
+
+def set_redaction_enabled(enabled: bool | str) -> None:
+    """Set process-wide redaction behavior for logs and explicit redaction calls."""
+    global _REDACTION_ENABLED
+    _REDACTION_ENABLED = _coerce_bool(enabled)
+
+
+def is_redaction_enabled() -> bool:
+    """Return whether process-wide private-data redaction is active."""
+    return _REDACTION_ENABLED
+
 
 def redact_text(text: str, *, max_chars: int | None = 240) -> str:
     """Redact secrets and bound arbitrary text before it reaches logs.
@@ -37,6 +50,9 @@ def redact_text(text: str, *, max_chars: int | None = 240) -> str:
     replaced with a length and digest marker instead of a preview. This avoids
     leaking proprietary spec chunks, prompts, generated answers, or LLM payloads.
     """
+    if not _REDACTION_ENABLED:
+        return text
+
     sanitized = _BEARER_RE.sub("Bearer [REDACTED]", text)
     sanitized = _BASIC_RE.sub("Basic [REDACTED]", sanitized)
     sanitized = _DSN_RE.sub(r"\1[REDACTED]\3", sanitized)
@@ -51,6 +67,9 @@ def redact_text(text: str, *, max_chars: int | None = 240) -> str:
 
 def redact_value(value: Any, *, max_chars: int | None = 240) -> Any:
     """Redact secrets recursively in common logging values."""
+    if not _REDACTION_ENABLED:
+        return value
+
     if isinstance(value, BaseException):
         return redact_text(str(value), max_chars=max_chars)
     if isinstance(value, str):
@@ -77,6 +96,8 @@ class RedactingFilter(logging.Filter):
     """Logging filter that redacts record templates and arguments."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        if not _REDACTION_ENABLED:
+            return True
         if isinstance(record.msg, str):
             record.msg = redact_text(record.msg, max_chars=None)
         if record.args:
@@ -84,8 +105,14 @@ class RedactingFilter(logging.Filter):
         return True
 
 
-def configure_redacted_logging(level: int | str, *, format: str | None = None) -> None:
-    """Configure root logging with redaction installed on all root handlers."""
+def configure_redacted_logging(
+    level: int | str,
+    *,
+    format: str | None = None,
+    enabled: bool | str = True,
+) -> None:
+    """Configure root logging with configurable private-data redaction."""
+    set_redaction_enabled(enabled)
     kwargs: dict[str, Any] = {"level": level}
     if format is not None:
         kwargs["format"] = format
@@ -99,3 +126,9 @@ def install_redacting_filter() -> None:
     for handler in root.handlers:
         if not any(isinstance(flt, RedactingFilter) for flt in handler.filters):
             handler.addFilter(RedactingFilter())
+
+
+def _coerce_bool(value: bool | str) -> bool:
+    if isinstance(value, bool):
+        return value
+    return value.strip().lower() not in {"0", "false", "no", "off", "disabled"}

@@ -499,7 +499,12 @@ def _json_block(value: Any) -> str:
 
 
 async def main():
-    configure_redacted_logging(level=logging.WARNING)
+    load_config()
+    cfg = get_config()
+    configure_redacted_logging(
+        level=logging.WARNING,
+        enabled=cfg.logging.redaction_enabled,
+    )
     srv = Server("rag-kag-ocpp")
     ocpp = OcppKnowledgeServer(); await ocpp.start()
 

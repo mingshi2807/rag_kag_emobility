@@ -35,7 +35,10 @@ def query_command(
 
 async def _query_async(query_text, top_k, stream, doc_type, evidence_layer):
     load_config(); cfg = get_config()
-    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
 
     pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
     assert pool

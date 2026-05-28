@@ -50,7 +50,10 @@ def eval_retrieval(
 async def _eval_async(queries_path: str, top_k: int):
     load_config()
     cfg = get_config()
-    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
 
     path = Path(queries_path)
     if not path.exists():
@@ -162,7 +165,10 @@ async def _eval_quality_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
 
     cases = filter_cases(default_quality_cases(), topics=topic, modes=mode)
     if list_cases:
@@ -283,7 +289,10 @@ async def _eval_answers_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
 
     cases = filter_answer_cases(
         default_golden_answer_cases(),

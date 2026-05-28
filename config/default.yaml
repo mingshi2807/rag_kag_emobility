@@ -65,3 +65,6 @@ retrieval:
 # ── Logging ────────────────────────────────────────────────
 logging:
   level: "${oc.env:LOG_LEVEL,INFO}"
+  # Keep enabled outside local debugging. Set LOG_REDACTION_ENABLED=false to
+  # inspect raw prompts/payloads in a controlled dev shell.
+  redaction_enabled: "${oc.env:LOG_REDACTION_ENABLED,true}"

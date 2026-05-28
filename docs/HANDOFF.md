@@ -40,7 +40,7 @@ Query -> vector + keyword + graph retrieval
 - `reports/golden_answers_codex-only/` stores Codex-authored DER, V2X, and Smart Charging answers refreshed from MCP evidence for offline rescoring without DeepSeek or OpenAI API calls.
 - `docs/mcp.md` now documents the Codex-assisted manual benchmark workflow: Codex uses MCP evidence tools, writes Markdown answers, and `rag eval-answers --from-answers-dir` scores them offline without DeepSeek or OpenAI API calls.
 - `tests/test_retrieval/test_vector_search.py` now uses inserted document UUIDs and deterministic 1024-dimensional embeddings, so vector, keyword, pending-embedding, and delete paths prove the intended storage contract.
-- `src/rag_ocpp/privacy.py` provides reusable redaction helpers and a logging filter. API, CLI, MCP, embedding batch, corpus, eval, and high-risk extraction logs now install or use redacted logging so secrets and long private payloads are masked before logs.
+- `src/rag_ocpp/privacy.py` provides reusable redaction helpers and a logging filter. API, CLI, MCP, embedding batch, corpus, eval, and high-risk extraction logs now install or use redacted logging so secrets and long private payloads are masked before logs. Redaction is enabled by default and can be disabled only for controlled local debugging with `LOG_REDACTION_ENABLED=false`.
 
 ## Strict Control Rules
 

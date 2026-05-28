@@ -44,7 +44,10 @@ async def _ingest_async(
     no_entities: bool, no_embed: bool, dry_run: bool,
 ) -> None:
     load_config(); cfg = get_config()
-    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
 
     files = sorted(path.rglob("*")) if path.is_dir() else [path]
     files = [f for f in files if f.suffix.lower() in (".pdf", ".json")]

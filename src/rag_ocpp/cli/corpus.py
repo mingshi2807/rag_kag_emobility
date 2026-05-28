@@ -79,7 +79,10 @@ async def _corpus_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
 
     planned = _planned_sources(
         spec_pdf=spec_pdf,
@@ -143,7 +146,10 @@ async def _index_corpus_async(
 ) -> None:
     load_config()
     cfg = get_config()
-    configure_redacted_logging(level=getattr(logging, cfg.logging.level))
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
 
     pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
     try:

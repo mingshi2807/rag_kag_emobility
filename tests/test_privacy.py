@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import logging
 
-from rag_ocpp.privacy import RedactingFilter, redact_text, redact_value
+from rag_ocpp.config import load_config
+from rag_ocpp.privacy import (
+    RedactingFilter,
+    configure_redacted_logging,
+    is_redaction_enabled,
+    redact_text,
+    redact_value,
+    set_redaction_enabled,
+)
 
 
 def test_redact_text_masks_common_secret_shapes():
@@ -68,3 +76,36 @@ def test_redacting_filter_sanitizes_log_record_arguments():
     assert "sk-secret" not in rendered
     assert "private answer" not in rendered
     assert "[REDACTED_TEXT" in rendered
+
+
+def test_redaction_can_be_disabled_for_local_debug():
+    set_redaction_enabled(False)
+    try:
+        raw = "Authorization=Bearer sk-debug " + ("private prompt " * 20)
+
+        assert redact_text(raw, max_chars=20) == raw
+        assert redact_value({"api_key": "sk-debug"}) == {"api_key": "sk-debug"}
+    finally:
+        set_redaction_enabled(True)
+
+
+def test_configure_redacted_logging_accepts_env_style_strings():
+    configure_redacted_logging(logging.INFO, enabled="false")
+    try:
+        assert is_redaction_enabled() is False
+        assert redact_text("password=dev-secret") == "password=dev-secret"
+    finally:
+        configure_redacted_logging(logging.INFO, enabled="true")
+
+    assert is_redaction_enabled() is True
+    assert redact_text("password=prod-secret") == "password=[REDACTED]"
+
+
+def test_logging_redaction_config_env_flag_is_boolean(monkeypatch):
+    monkeypatch.setenv("LOG_REDACTION_ENABLED", "false")
+
+    cfg = load_config()
+
+    assert cfg.logging.redaction_enabled is False
+    monkeypatch.setenv("LOG_REDACTION_ENABLED", "true")
+    load_config()
