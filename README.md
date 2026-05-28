@@ -5,7 +5,7 @@ RAG plus KAG: source-aware ingestion, chunking, embeddings, PostgreSQL/pgvector
 storage, graph relationships, hybrid retrieval, generation, evaluation, CLI,
 API, and MCP access.
 
-Stable release target: `v0.2.0`.
+Stable release target: `v0.3.0`.
 
 ## What This Project Does
 
@@ -18,7 +18,7 @@ traceable, source-aware implementation guidance that can be evaluated, audited,
 and used by coding agents without leaking private protocol material into logs or
 uncontrolled generation flows.
 
-## v0.2.0 Status
+## v0.3.0 Status
 
 Implemented:
 
@@ -37,6 +37,8 @@ Implemented:
 - Explicit SQL migrations with a `schema_migrations` ledger.
 - FastAPI query/search contracts plus admin-controlled source-aware corpus
   preview, store, and index endpoints.
+- Shared API/CLI/MCP corpus status contract and documented curl/Postman smoke
+  tests for the running uvicorn server.
 
 Not yet enterprise-complete:
 
@@ -176,7 +178,7 @@ legacy database adoption details.
 
 ## Corpus Ingestion
 
-The v0.2.0 priority corpus is OCPP 2.1 Ed2:
+The v0.3.0 priority corpus is OCPP 2.1 Ed2:
 
 - Part 2 specification PDF
 - Device Model CSV/XLSX tables
@@ -420,7 +422,7 @@ before project type checking if the Python interpreter is missing `_sqlite3`.
 
 ## Release Notes
 
-- Current stable tag target: `v0.2.0`
+- Current stable tag target: `v0.3.0`
 - API reference: [api.json](api.json)
 - Release notes: [release_notes.md](release_notes.md)
 - Changelog: [changelog.md](changelog.md)
@@ -428,7 +430,7 @@ before project type checking if the Python interpreter is missing `_sqlite3`.
 Recommended release commit message:
 
 ```text
-release: publish v0.2.0 enterprise controls
+release: publish v0.3.0 FastAPI access surface
 ```
 
 ## Documentation Index
@@ -439,6 +441,8 @@ release: publish v0.2.0 enterprise controls
 - [docs/private_knowledge_controls.md](docs/private_knowledge_controls.md):
   redaction and audit-event controls.
 - [docs/mcp.md](docs/mcp.md): MCP server and coding-agent usage.
+- [docs/api_http_client_tests.md](docs/api_http_client_tests.md): curl and
+  Postman smoke tests against a running uvicorn server.
 - [docs/query_quality_eval.md](docs/query_quality_eval.md): retrieval and
   golden-answer evaluation gates.
 

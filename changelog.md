@@ -2,6 +2,74 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.3.0] - 2026-05-28
+
+### Added
+
+- Added source-aware FastAPI query/search response controls for `top_k`,
+  `doc_type`, `evidence_layer`, `source_type`, content inclusion, answer
+  inclusion, and query echoing.
+- Added source metadata in API chunk responses: evidence layer, source type,
+  source path, and content hash.
+- Added correlation IDs and privacy-preserving query references to API query and
+  search responses.
+- Added admin bearer-token guard for mutating FastAPI endpoints through
+  `API_ADMIN_TOKEN`.
+- Added dedicated source-aware corpus API endpoints:
+  - `GET /corpus/status`
+  - `POST /corpus/preview`
+  - `POST /corpus/store`
+  - `POST /corpus/index`
+- Added shared corpus status contract across API, CLI, and MCP with
+  `src/rag_ocpp/corpus/status.py`.
+- Added `rag corpus-status`.
+- Added API/CLI/MCP corpus status contract tests.
+- Added curl and Postman smoke-test documentation in
+  `docs/api_http_client_tests.md`.
+
+### Changed
+
+- Bumped package version and FastAPI OpenAPI metadata to `0.3.0`.
+- Regenerated `api.json` as OpenAPI `3.0.3` with API version `0.3.0`.
+- Marked `POST /ingest` as a legacy admin direct-ingestion endpoint.
+- Updated README and handoff documentation to reference the HTTP client smoke
+  test process and source-aware corpus API flow.
+- Updated MCP `inspect_ocpp_corpus` to use the shared corpus status helper.
+- Updated API `GET /corpus/status` to use the shared corpus status helper.
+
+### Fixed
+
+- Fixed API query/search `top_k` handling so request limits are passed into
+  retrieval.
+- Fixed API generation failures to return redacted structured errors instead of
+  leaking internal exception details.
+- Fixed corpus status drift risk by removing separate API and MCP status SQL
+  implementations.
+
+### Verified
+
+- API, corpus-status contract, audit, and privacy test group: `22/22` passed.
+- Corpus route tests: `2/2` passed.
+- Corpus status plus corpus route contract group: `6/6` passed.
+- Scoped ruff checks passed on changed API, CLI, corpus, MCP, and test files.
+- Python compile checks passed for `src/rag_ocpp`.
+- `git diff --check` passed.
+- Live uvicorn curl smoke tests passed for health, OpenAPI, corpus status,
+  documents, entity lookup, search, generation, streaming generation, admin
+  guard failures, and safe admin no-op/not-found checks.
+
+### Known Limitations
+
+- Corpus preview/store/index remain synchronous API operations and need
+  background job records before production use.
+- Full API/CLI/MCP generated-answer Markdown parity is not complete.
+- Source ACLs, tenant isolation, retention/deletion policy, and secret-handling
+  policy remain future work.
+- CI wiring for API smoke tests, eval-quality, eval-answers, and migrations is
+  still pending.
+- Broad ruff checks still report older unrelated style debt in legacy CLI
+  modules outside this release scope.
+
 ## [v0.2.0] - 2026-05-28
 
 ### Added

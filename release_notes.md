@@ -1,3 +1,133 @@
+# v0.3.0 - FastAPI Enterprise Access Surface
+
+## Release Title
+
+FastAPI Enterprise Access Surface for OCPP 2.1 Ed2 RAG/KAG
+
+## Release Description
+
+`v0.3.0` promotes the FastAPI layer from a basic access surface into a tested,
+source-aware API for OCPP 2.1 Ed2 private knowledge operations. This release
+aligns query/search responses with source metadata, adds admin-controlled corpus
+operations, exports an OpenAPI 3.0.3 reference at version `0.3.0`, and documents
+curl/Postman smoke tests against a running uvicorn server.
+
+The release keeps the enterprise privacy, audit, and migration controls from
+`v0.2.0`, then adds the HTTP contracts needed for API clients, coding agents,
+and operators to inspect corpus health, retrieve evidence, generate answers,
+and run safe admin checks.
+
+## Highlights
+
+- Bumped package and FastAPI metadata to `0.3.0`.
+- Regenerated `api.json` as OpenAPI `3.0.3` with API version `0.3.0`.
+- Added source-aware FastAPI query/search controls:
+  - `top_k`
+  - `doc_type`
+  - `evidence_layer`
+  - `source_type`
+  - `max_chars`
+  - `include_content`
+  - `include_answer`
+  - `include_query`
+- Added source metadata in API chunk responses:
+  - `evidence_layer`
+  - `source_type`
+  - `source_path`
+  - `content_hash`
+- Added privacy-preserving query references and correlation IDs in API responses.
+- Added redacted generation failure responses for `/query` and `/query/stream`.
+- Added `API_ADMIN_TOKEN` bearer-auth guard for mutating API endpoints.
+- Marked `POST /ingest` as a legacy admin direct-ingestion endpoint.
+- Added dedicated source-aware corpus API endpoints:
+  - `GET /corpus/status`
+  - `POST /corpus/preview`
+  - `POST /corpus/store`
+  - `POST /corpus/index`
+- Added shared corpus status contract across API, CLI, and MCP:
+  - `GET /corpus/status`
+  - `rag corpus-status`
+  - MCP `inspect_ocpp_corpus`
+- Added HTTP client smoke-test documentation for curl and Postman.
+
+## Operator Guidance
+
+Start the API with `.env` explicitly sourced:
+
+```bash
+set -a
+source .env
+set +a
+
+HF_HOME=./models API_ADMIN_TOKEN=local-test-token \
+  .venv/bin/uvicorn "rag_ocpp.api.app:create_app" \
+  --factory \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+Import the OpenAPI reference into Postman:
+
+```text
+http://127.0.0.1:8000/openapi.json
+```
+
+Run the HTTP smoke-test procedure:
+
+```text
+docs/api_http_client_tests.md
+```
+
+## Validation
+
+Validated locally with:
+
+- `.venv/bin/pytest tests/test_api tests/test_corpus/test_status_contract.py tests/test_storage/test_audit.py tests/test_privacy.py -q`
+  - `22 passed`
+- `.venv/bin/pytest tests/test_api/test_corpus_routes.py -q`
+  - `2 passed`
+- `.venv/bin/pytest tests/test_corpus/test_status_contract.py tests/test_api/test_corpus_routes.py -q`
+  - `6 passed`
+- Scoped `ruff check` on changed API, CLI, corpus, MCP, and test files.
+- `.venv/bin/python -m compileall -q src/rag_ocpp`
+- `git diff --check`
+- Live uvicorn smoke tests with curl:
+  - `GET /health`
+  - `GET /openapi.json`
+  - `GET /corpus/status`
+  - `GET /documents`
+  - `GET /entities/DeviceDataCtrlr`
+  - `GET /search`
+  - `POST /query`
+  - `POST /query/stream`
+  - admin guard checks for `/corpus/*`, `/ingest`, and `/documents/{id}`
+
+## Known Gaps
+
+- Corpus preview/store/index still run synchronously in the API; production
+  operation should move these to explicit background jobs with job records.
+- Full API/CLI/MCP generated-answer Markdown parity is still pending.
+- Source-level ACLs, tenant isolation, retention/deletion policy, and
+  secret-handling policy remain future enterprise controls.
+- Eval coverage remains strongest for Section R DER, Section Q V2X, and Section
+  K smart charging; broader OCPP 2.1 Ed2 coverage is still pending.
+- CI wiring for API smoke tests, retrieval quality, golden answers, and
+  migrations remains pending.
+- Local broad ruff checks still expose older unrelated style debt in legacy CLI
+  modules outside the v0.3.0 API work.
+
+## Recommended Tag
+
+```text
+v0.3.0
+```
+
+## Recommended Release Commit Message
+
+```text
+release: publish v0.3.0 FastAPI access surface
+```
+
 # v0.2.0 - Enterprise Control Plane: Privacy, Audit, and DB Migrations
 
 ## Release Title

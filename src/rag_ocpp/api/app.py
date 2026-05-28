@@ -59,7 +59,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
 
     app = FastAPI(
         title="RAG/KAG OCPP 2.1",
-        version="0.2.0",
+        version="0.3.0",
         lifespan=lifespan,
     )
     app.openapi_version = "3.0.3"

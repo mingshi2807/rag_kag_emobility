@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, and shared API/CLI/MCP corpus status contract tests are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, and OpenAPI 3.0.3 API reference output. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -51,7 +51,7 @@ Query -> vector + keyword + graph retrieval
 - `src/rag_ocpp/api/security.py` requires `API_ADMIN_TOKEN` bearer auth for mutating admin API endpoints. `POST /ingest` is documented as a legacy/admin direct-ingestion endpoint; `DELETE /documents/{document_id}` is also admin-protected.
 - `src/rag_ocpp/api/routes/corpus.py` adds `GET /corpus/status` plus admin-controlled `POST /corpus/preview`, `POST /corpus/store`, and `POST /corpus/index` for the source-aware OCPP 2.1 Ed2 PDF, Device Model, and JSON schema corpus path.
 - `docs/api_http_client_tests.md` documents curl and Postman smoke tests against a running uvicorn server, including health, OpenAPI, search, generation, streaming, admin guards, and safe corpus admin checks.
-- `api.json` exports the FastAPI reference as OpenAPI `3.0.3` for API consumers.
+- `api.json` exports the FastAPI reference as OpenAPI `3.0.3` version `0.3.0` for API consumers.
 
 ## Strict Control Rules
 

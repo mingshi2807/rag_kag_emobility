@@ -13,7 +13,7 @@ def test_openapi_schema_is_v3_0_and_matches_exported_api_json():
     exported = json.loads(Path("api.json").read_text(encoding="utf-8"))
 
     assert schema["openapi"] == "3.0.3"
-    assert schema["info"]["version"] == "0.2.0"
+    assert schema["info"]["version"] == "0.3.0"
     assert exported == schema
     assert '"type": "null"' not in json.dumps(schema)
     assert "/query" in schema["paths"]
