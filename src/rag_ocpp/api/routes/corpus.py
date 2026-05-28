@@ -30,6 +30,7 @@ from rag_ocpp.corpus.ocpp21 import (
     OCPP21_ED2_JSON_SCHEMA_DIR,
     OCPP21_ED2_PART2_SPEC_PDF,
 )
+from rag_ocpp.corpus.status import load_corpus_status
 from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.storage.audit import AuditEvent, AuditStore
 from rag_ocpp.storage.corpus import (
@@ -44,47 +45,15 @@ router = APIRouter()
 @router.get("/status", response_model=CorpusStatusResponse)
 async def corpus_status(pool: asyncpg.Pool = Depends(get_pool)):
     """Return source-aware corpus storage/index health."""
-    rows = await pool.fetch(
-        """
-        SELECT source_type, count(*) AS count
-        FROM source_documents
-        GROUP BY source_type
-        """
-    )
-    by_source_type = {row["source_type"]: row["count"] for row in rows}
-
-    layer_rows = await pool.fetch(
-        """
-        SELECT metadata->>'evidence_layer' AS evidence_layer, count(*) AS count
-        FROM source_documents
-        GROUP BY metadata->>'evidence_layer'
-        """
-    )
-    by_evidence_layer = {
-        row["evidence_layer"] or "unknown": row["count"] for row in layer_rows
-    }
-
-    counts = await pool.fetchrow(
-        """
-        SELECT
-            (SELECT count(*) FROM source_documents) AS source_documents,
-            (SELECT count(*) FROM corpus_records) AS corpus_records,
-            (SELECT count(*) FROM documents WHERE source_path LIKE 'corpus:%') AS corpus_documents,
-            (SELECT count(*) FROM chunks WHERE metadata ? 'corpus_record_id') AS corpus_chunks,
-            (SELECT count(*) FROM chunks
-             WHERE metadata ? 'corpus_record_id'
-               AND embedding IS NOT NULL) AS embedded_corpus_chunks
-        """
-    )
-    assert counts is not None
+    counts = await load_corpus_status(pool)
     return CorpusStatusResponse(
-        source_documents=counts["source_documents"],
-        corpus_records=counts["corpus_records"],
-        corpus_documents=counts["corpus_documents"],
-        corpus_chunks=counts["corpus_chunks"],
-        embedded_corpus_chunks=counts["embedded_corpus_chunks"],
-        by_source_type=by_source_type,
-        by_evidence_layer=by_evidence_layer,
+        source_documents=counts.source_documents,
+        corpus_records=counts.corpus_records,
+        corpus_documents=counts.corpus_documents,
+        corpus_chunks=counts.corpus_chunks,
+        embedded_corpus_chunks=counts.embedded_corpus_chunks,
+        by_source_type=counts.by_source_type,
+        by_evidence_layer=counts.by_evidence_layer,
     )
 
 

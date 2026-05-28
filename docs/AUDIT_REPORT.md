@@ -35,6 +35,7 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 - `docs/HANDOFF.md` reports implemented retrieval quality evals, generated-answer evals, redacted logging, audit events, and migrations.
 - `api.json` exports the FastAPI reference as OpenAPI `3.0.3`.
 - `tests/test_api/` covers API query/search contract behavior, admin mutation guards, source-aware corpus API behavior, and exported OpenAPI schema drift.
+- `tests/test_corpus/test_status_contract.py` verifies the shared corpus status count contract used by API, CLI, and MCP surfaces.
 - Mutating API endpoints require configured `API_ADMIN_TOKEN` bearer auth; otherwise they are disabled.
 - `POST /corpus/preview`, `POST /corpus/store`, and `POST /corpus/index` provide the preferred source-aware OCPP corpus API path. `GET /corpus/status` exposes read-only corpus/index counts.
 - `docs/mcp.md` documents nine MCP read tools and the Codex-assisted manual benchmark workflow.

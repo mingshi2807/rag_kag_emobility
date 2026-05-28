@@ -16,6 +16,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from rag_ocpp.config import get_config, load_config
+from rag_ocpp.corpus.status import load_corpus_status
 from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
@@ -95,7 +96,10 @@ TOOLS = [
                 "feature": {"type": "string", "description": "Feature or protocol area."},
                 "query": {
                     "type": "string",
-                    "description": "Optional exact retrieval query. Defaults to a fusion implementation query.",
+                    "description": (
+                        "Optional exact retrieval query. Defaults to a fusion "
+                        "implementation query."
+                    ),
                 },
                 "top_k": {"type": "integer", "default": 14, "minimum": 1, "maximum": 20},
                 "max_chars": {
@@ -110,7 +114,10 @@ TOOLS = [
     ),
     Tool(
         name="inspect_ocpp_corpus",
-        description="Return corpus/index health, evidence-layer counts, embedding counts, and model dimensions.",
+        description=(
+            "Return corpus/index health, evidence-layer counts, embedding counts, "
+            "and model dimensions."
+        ),
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
@@ -185,18 +192,29 @@ class OcppKnowledgeServer:
         self.audit_store: AuditStore | None = None
 
     async def start(self):
-        load_config(); cfg = get_config()
-        self.pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn, min_size=2, max_size=10)
-        embedding = EmbeddingModel(cfg.embedding); embedding.load()
-        reranker = CrossEncoderReranker(cfg.reranker); reranker.load()
-        self.retriever = HybridRetriever(pool=self.pool, embedding_model=embedding, reranker=reranker, final_top_k=20)
+        load_config()
+        cfg = get_config()
+        self.pool = await asyncpg.create_pool(
+            dsn=cfg.postgres.dsn, min_size=2, max_size=10
+        )
+        embedding = EmbeddingModel(cfg.embedding)
+        embedding.load()
+        reranker = CrossEncoderReranker(cfg.reranker)
+        reranker.load()
+        self.retriever = HybridRetriever(
+            pool=self.pool,
+            embedding_model=embedding,
+            reranker=reranker,
+            final_top_k=20,
+        )
         self.vector_store = VectorStore(self.pool)
         self.graph_store = GraphStore(self.pool)
         self.audit_store = AuditStore(self.pool)
         logger.info("MCP server started.")
 
     async def stop(self):
-        if self.pool: await self.pool.close()
+        if self.pool:
+            await self.pool.close()
 
 
 async def _search(srv, args):
@@ -304,63 +322,34 @@ async def _implementation_brief(srv, args):
 
 
 async def _corpus_status(srv, args):
-    source_rows = await srv.pool.fetch(
-        """
-        SELECT metadata->>'evidence_layer' AS evidence_layer, source_type, count(*) AS count
-        FROM source_documents
-        GROUP BY 1,2
-        ORDER BY 1,2
-        """
-    )
-    chunk_rows = await srv.pool.fetch(
-        """
-        SELECT metadata->>'evidence_layer' AS evidence_layer,
-               metadata->>'source_type' AS source_type,
-               count(*) AS chunks,
-               count(embedding) AS embeddings
-        FROM chunks
-        GROUP BY 1,2
-        ORDER BY 1,2
-        """
-    )
-    dim_rows = await srv.pool.fetch(
-        """
-        SELECT vector_dims(embedding) AS dims, count(*) AS count
-        FROM chunks
-        WHERE embedding IS NOT NULL
-        GROUP BY 1
-        ORDER BY 1
-        """
-    )
-    totals = await srv.pool.fetchrow(
-        """
-        SELECT
-          (SELECT count(*) FROM source_documents) AS sources,
-          (SELECT count(*) FROM corpus_records) AS records,
-          (SELECT count(*) FROM chunks) AS chunks,
-          (SELECT count(embedding) FROM chunks) AS embeddings,
-          (SELECT count(*) FROM chunk_entities) AS entity_links,
-          (SELECT count(*) FROM relationships) AS relationships
-        """
-    )
+    status = await load_corpus_status(srv.pool)
     lines = [
         "# OCPP Corpus Status",
         "",
         "## Totals",
         "",
-        _json_block(dict(totals or {})),
+        _json_block(
+            {
+                "sources": status.source_documents,
+                "records": status.corpus_records,
+                "chunks": status.total_chunks,
+                "embeddings": status.total_embeddings,
+                "entity_links": status.entity_links,
+                "relationships": status.relationships,
+            }
+        ),
         "",
         "## Source Documents By Evidence Layer",
         "",
-        _json_block([dict(r) for r in source_rows]),
+        _json_block(status.source_documents_by_evidence_layer),
         "",
         "## Chunks By Evidence Layer",
         "",
-        _json_block([dict(r) for r in chunk_rows]),
+        _json_block(status.chunks_by_evidence_layer),
         "",
         "## Embedding Dimensions",
         "",
-        _json_block([dict(r) for r in dim_rows]),
+        _json_block(status.embedding_dimensions),
     ]
     return "\n".join(lines)
 
@@ -374,7 +363,8 @@ async def _chunk(srv, args):
         """,
         UUID(args["chunk_id"]),
     )
-    if not row: return "Not found."
+    if not row:
+        return "Not found."
     metadata = _metadata(row["metadata"])
     return (
         f"# OCPP Chunk\n\n"
@@ -392,34 +382,88 @@ async def _chunk(srv, args):
 
 async def _entities(srv, args):
     tmap = {
-        "command": 1, "datatype": 2, "component": 3, "variable": 4, "enum": 5,
-        "functional_block": 7, "error_code": 8, "test_case": 9,
-        "message": 10, "request": 11, "response": 12, "field": 13,
-        "attribute": 14, "requirement": 15, "schema": 16,
+        "command": 1,
+        "datatype": 2,
+        "component": 3,
+        "variable": 4,
+        "enum": 5,
+        "functional_block": 7,
+        "error_code": 8,
+        "test_case": 9,
+        "message": 10,
+        "request": 11,
+        "response": 12,
+        "field": 13,
+        "attribute": 14,
+        "requirement": 15,
+        "schema": 16,
     }
     tid = tmap.get(args.get("entity_type"))
-    limit = _clamp_int(args.get("limit",20), 1, 100)
+    limit = _clamp_int(args.get("limit", 20), 1, 100)
     if tid:
-        rows = await srv.pool.fetch("SELECT name, description FROM entities WHERE protocol_id=1 AND type_id=$1 ORDER BY name LIMIT $2", tid, limit)
+        rows = await srv.pool.fetch(
+            """
+            SELECT name, description
+            FROM entities
+            WHERE protocol_id=1 AND type_id=$1
+            ORDER BY name
+            LIMIT $2
+            """,
+            tid,
+            limit,
+        )
     else:
-        rows = await srv.pool.fetch("SELECT e.name, et.name as t FROM entities e JOIN entity_types et ON et.id=e.type_id WHERE e.protocol_id=1 ORDER BY et.name, e.name LIMIT $1", limit)
-    if not rows: return "No entities."
+        rows = await srv.pool.fetch(
+            """
+            SELECT e.name, et.name as t
+            FROM entities e
+            JOIN entity_types et ON et.id=e.type_id
+            WHERE e.protocol_id=1
+            ORDER BY et.name, e.name
+            LIMIT $1
+            """,
+            limit,
+        )
+    if not rows:
+        return "No entities."
     lines = ["# OCPP Entities", ""]
     for row in rows:
         row_dict = dict(row)
-        lines.append(f"- [{row_dict.get('t', args.get('entity_type', ''))}] {row_dict['name']}")
+        lines.append(
+            f"- [{row_dict.get('t', args.get('entity_type', ''))}] "
+            f"{row_dict['name']}"
+        )
     return "\n".join(lines)
 
 async def _entity(srv, args):
     e = await srv.graph_store.find_entity(protocol_id=1, name=args["name"])
     if not e:
-        cs = await srv.graph_store.find_entity_fuzzy(protocol_id=1, name=args["name"], threshold=0.3, limit=3)
-        return f"Not found. Did you mean: {', '.join(c.name for c in cs)}?" if cs else "Not found."
+        cs = await srv.graph_store.find_entity_fuzzy(
+            protocol_id=1, name=args["name"], threshold=0.3, limit=3
+        )
+        return (
+            f"Not found. Did you mean: {', '.join(c.name for c in cs)}?"
+            if cs
+            else "Not found."
+        )
     rels = await srv.graph_store.get_relationships(e.id, direction="both")
     chunks = await srv.graph_store.get_chunks_for_entity(e.id, top_k=5)
-    out = [f"# {e.name}", "", f"- Type ID: `{e.type_id}`", f"- Description: {e.description or 'N/A'}",
-           f"- Aliases: `{e.aliases}`", f"- Linked chunks: `{len(chunks)}`", "", f"## Relationships ({len(rels)})"]
-    for r in rels: out.append(f"  {r.rel_type} → {r.target_id}" if r.source_id==e.id else f"  ← {r.rel_type} {r.source_id}")
+    out = [
+        f"# {e.name}",
+        "",
+        f"- Type ID: `{e.type_id}`",
+        f"- Description: {e.description or 'N/A'}",
+        f"- Aliases: `{e.aliases}`",
+        f"- Linked chunks: `{len(chunks)}`",
+        "",
+        f"## Relationships ({len(rels)})",
+    ]
+    for r in rels:
+        out.append(
+            f"  {r.rel_type} → {r.target_id}"
+            if r.source_id == e.id
+            else f"  ← {r.rel_type} {r.source_id}"
+        )
     if chunks:
         out.extend(["", "## Linked Chunks"])
         for i, c in enumerate(chunks, 1):
@@ -431,8 +475,13 @@ async def _entity(srv, args):
 
 async def _docs(srv, args):
     rows = await srv.vector_store.list_documents(protocol_id=1)
-    if not rows: return "No documents."
-    return "\n".join(f"  {r['title'] or r['source_path']} — {r['chunk_count']} chunks, {r['entity_count']} entities" for r in rows)
+    if not rows:
+        return "No documents."
+    return "\n".join(
+        f"  {r['title'] or r['source_path']} — {r['chunk_count']} chunks, "
+        f"{r['entity_count']} entities"
+        for r in rows
+    )
 
 async def _section(srv, args):
     top_k = _clamp_int(args.get("top_k", 10), 1, 20)
@@ -454,7 +503,8 @@ async def _section(srv, args):
         source_type,
         top_k,
     )
-    if not rows: return f"No chunks for '{args['section_title']}'."
+    if not rows:
+        return f"No chunks for '{args['section_title']}'."
     lines = [f"# Section Search\n\nSection title contains: `{args['section_title']}`\n"]
     for i, r in enumerate(rows, 1):
         metadata = _metadata(r["metadata"])
@@ -554,10 +604,12 @@ async def main():
         enabled=cfg.logging.redaction_enabled,
     )
     srv = Server("rag-kag-ocpp")
-    ocpp = OcppKnowledgeServer(); await ocpp.start()
+    ocpp = OcppKnowledgeServer()
+    await ocpp.start()
 
     @srv.list_tools()
-    async def lt(): return TOOLS
+    async def lt():
+        return TOOLS
 
     @srv.call_tool()
     async def ct(name: str, arguments: dict | None):
@@ -577,7 +629,8 @@ async def main():
             "search_ocpp_by_section": _section,
         }
         h = handlers.get(name)
-        if not h: return [TextContent(type="text", text=f"Unknown: {name}")]
+        if not h:
+            return [TextContent(type="text", text=f"Unknown: {name}")]
         try:
             result = await h(ocpp, args)
             await _audit(

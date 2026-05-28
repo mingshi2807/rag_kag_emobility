@@ -208,6 +208,12 @@ Index stored records into chunks, embeddings, and graph links:
 HF_HOME=./models .venv/bin/rag index-corpus
 ```
 
+Show source-aware corpus and index counts:
+
+```bash
+HF_HOME=./models .venv/bin/rag corpus-status
+```
+
 ## Query Examples
 
 General query:

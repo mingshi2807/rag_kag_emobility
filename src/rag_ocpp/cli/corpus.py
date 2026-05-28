@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from rag_ocpp.corpus.ocpp21 import (
     parse_json_schema_file,
     parse_spec_pdf_sections,
 )
+from rag_ocpp.corpus.status import load_corpus_status
 from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.storage.audit import AuditEvent, AuditStore
@@ -209,6 +211,47 @@ async def _index_corpus_async(
         f"{result.chunks_embedded} embeddings, "
         f"{result.entities_linked} entity links, "
         f"{result.relationships_created} relationships."
+    )
+
+
+def corpus_status_command() -> None:
+    """Show source-aware corpus and index counts."""
+    asyncio.run(_corpus_status_async())
+
+
+async def _corpus_status_async() -> None:
+    load_config()
+    cfg = get_config()
+    configure_redacted_logging(
+        level=getattr(logging, cfg.logging.level),
+        enabled=cfg.logging.redaction_enabled,
+    )
+
+    pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
+    try:
+        status = await load_corpus_status(pool)
+    finally:
+        await pool.close()
+
+    typer.echo(
+        json.dumps(
+            {
+                "source_documents": status.source_documents,
+                "corpus_records": status.corpus_records,
+                "corpus_documents": status.corpus_documents,
+                "corpus_chunks": status.corpus_chunks,
+                "embedded_corpus_chunks": status.embedded_corpus_chunks,
+                "total_chunks": status.total_chunks,
+                "total_embeddings": status.total_embeddings,
+                "entity_links": status.entity_links,
+                "relationships": status.relationships,
+                "by_source_type": status.by_source_type,
+                "by_evidence_layer": status.by_evidence_layer,
+                "embedding_dimensions": status.embedding_dimensions,
+            },
+            indent=2,
+            sort_keys=True,
+        )
     )
 
 

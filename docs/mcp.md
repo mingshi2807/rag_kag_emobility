@@ -73,6 +73,8 @@ Returns corpus/index health for agent preflight checks.
 | none | — | — |
 
 Returns totals plus evidence-layer/source-type counts and embedding dimensions.
+The core count contract is shared with `GET /corpus/status` and
+`rag corpus-status`.
 
 ### `get_ocpp_chunk`
 
