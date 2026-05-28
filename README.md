@@ -438,6 +438,8 @@ release: publish v0.3.0 FastAPI access surface
 - [docs/HANDOFF.md](docs/HANDOFF.md): current control document and next actions.
 - [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md): enterprise-readiness audit.
 - [docs/db_migrations.md](docs/db_migrations.md): DB migration workflow.
+- [docs/postgres_backup.md](docs/postgres_backup.md): PostgreSQL dump backup
+  and restore workflow.
 - [docs/private_knowledge_controls.md](docs/private_knowledge_controls.md):
   redaction and audit-event controls.
 - [docs/mcp.md](docs/mcp.md): MCP server and coding-agent usage.

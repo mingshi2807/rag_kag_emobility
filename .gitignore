@@ -16,6 +16,9 @@ note_tmp.txt
 # Private data (documents to ingest)
 data/
 
+# Private database backups
+backups/
+
 # Downloaded HuggingFace models
 models/
 
