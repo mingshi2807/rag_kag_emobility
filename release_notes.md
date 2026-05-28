@@ -1,3 +1,98 @@
+# v0.2.0 - Enterprise Control Plane: Privacy, Audit, and DB Migrations
+
+## Release Title
+
+Enterprise Control Plane for OCPP 2.1 Ed2 Knowledge Backend
+
+## Release Description
+
+`v0.2.0` moves the OCPP 2.1 Ed2 RAG/KAG backend beyond evaluation baselines into enterprise-control foundations. This release adds configurable private-knowledge protections, privacy-preserving audit events, repaired storage/retrieval integration tests, and explicit PostgreSQL migrations with a migration ledger.
+
+The release keeps the existing R/Q/K retrieval and golden-answer benchmarks from `v0.1.2`, then strengthens the operational substrate needed for private enterprise knowledge: safer logging, auditable access events, reproducible schema setup, and documented legacy database adoption.
+
+## Highlights
+
+- Added configurable redacted logging for private source text, prompts, answers, secrets, and long payloads.
+- Added privacy-preserving audit events for:
+  - query
+  - retrieval
+  - generation
+  - corpus ingestion/indexing
+  - MCP access
+- Added `audit_events` storage and audit helpers that store hashes, lengths, IDs, counts, status, latency, and redacted metadata instead of raw private text.
+- Repaired retrieval/storage integration tests with deterministic document IDs and 1024-dimensional embeddings.
+- Added explicit SQL migration runner with `schema_migrations` ledger.
+- Added migration CLI commands:
+  - `rag migrate-status`
+  - `rag migrate --dry-run`
+  - `rag migrate`
+  - `rag migrate --baseline`
+- Added migration `001_initial_schema.sql` for fresh databases.
+- Added migration `002_ensure_audit_events.sql` for legacy databases missing `audit_events`.
+- Added `docs/db_migrations.md` with fresh DB setup and legacy baseline adoption flows.
+- Updated `docs/HANDOFF.md` and `docs/AUDIT_REPORT.md` to reflect current enterprise-control status.
+
+## Operator Guidance
+
+For a fresh empty database:
+
+```bash
+docker compose up -d
+.venv/bin/rag migrate --dry-run
+.venv/bin/rag migrate
+.venv/bin/rag migrate-status
+```
+
+For an existing local database created before migrations existed:
+
+```bash
+.venv/bin/rag migrate --baseline
+.venv/bin/rag migrate --dry-run
+.venv/bin/rag migrate
+.venv/bin/rag migrate-status
+```
+
+Expected final migration state:
+
+```text
+001 initial_schema: applied at <timestamp>
+002 ensure_audit_events: applied at <timestamp>
+```
+
+## Validation
+
+Validated locally with:
+
+- `.venv/bin/pytest tests/test_storage/test_migrations.py -q`
+  - `2 passed`
+- `.venv/bin/pytest tests/test_storage/test_migrations.py tests/test_storage/test_audit.py tests/test_privacy.py -q`
+  - `10 passed`
+- `.venv/bin/ruff check src/rag_ocpp/storage/migrations.py src/rag_ocpp/cli/db.py src/rag_ocpp/cli/main.py tests/test_storage/test_migrations.py`
+- `.venv/bin/python -m compileall -q src/rag_ocpp`
+- `.venv/bin/rag migrate --help`
+- `git diff --check`
+
+## Known Gaps
+
+- Source-level ACLs, tenant isolation, retention/deletion policy, and secret-handling policy are still not complete.
+- API, CLI, and MCP generated-answer behavior still need full alignment with the golden-answer Markdown and citation contract.
+- Eval coverage is still concentrated on Section R DER, Section Q V2X, and Section K smart charging.
+- CI wiring for migration tests, retrieval quality, and golden-answer gates remains pending.
+- Migration rollback, backup, restore, and re-embedding operational runbooks still need to be formalized.
+- `mypy` could not be used in the local Python environment because the interpreter build is missing `_sqlite3`, which causes mypy 2.1.0 to fail before checking project code.
+
+## Recommended Tag
+
+```text
+v0.2.0
+```
+
+## Recommended Release Commit Message
+
+```text
+release: publish v0.2.0 enterprise controls
+```
+
 # v0.1.2 - OCPP 2.1 Ed2 Evaluation and Golden Answer Benchmarks
 
 ## Release Title

@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.0] - 2026-05-28
+
+### Added
+
+- Added configurable redacted logging for private source text, prompts, generated answers, secrets, and long payloads.
+- Added privacy-preserving audit event storage for query, retrieval, generation, corpus ingestion/indexing, and MCP access.
+- Added explicit PostgreSQL migration runner with `schema_migrations` ledger.
+- Added migration CLI commands: `rag migrate-status`, `rag migrate --dry-run`, `rag migrate`, and `rag migrate --baseline`.
+- Added initial schema migration `001_initial_schema.sql`.
+- Added legacy repair migration `002_ensure_audit_events.sql` for databases missing `audit_events`.
+- Added `docs/db_migrations.md` with fresh database setup and legacy baseline adoption flows.
+- Added Docker-backed migration tests for fresh apply and legacy baseline-plus-repair behavior.
+
+### Changed
+
+- Updated package data so storage SQL and migration files are included with the Python package.
+- Updated handoff and audit documentation to reflect redaction, audit events, repaired retrieval tests, and explicit migrations.
+- Updated enterprise-readiness framing: migrations are now implemented, while source ACLs, retention/deletion policy, CI wiring, and broader contract tests remain open.
+
+### Fixed
+
+- Fixed legacy migration adoption for databases that already have the core schema but no migration ledger.
+- Fixed the missing `audit_events` table path by adding an idempotent repair migration.
+- Repaired retrieval/storage integration tests to use inserted document UUIDs and deterministic 1024-dimensional embeddings.
+
+### Verified
+
+- Migration tests: `2/2` passed.
+- Migration, audit, and privacy test group: `10/10` passed.
+- Ruff checks passed on the touched migration, CLI, and test files.
+- Python compile checks passed for `src/rag_ocpp`.
+- CLI help confirms `rag migrate` and `rag migrate-status` are available.
+- `git diff --check` passed.
+
+### Known Limitations
+
+- Source-level ACLs, tenant isolation, retention/deletion policy, and secret-handling policy are still future work.
+- API, CLI, and MCP generated-answer behavior still needs full golden-answer Markdown and citation contract alignment.
+- Eval coverage remains strongest for Section R DER, Section Q V2X, and Section K smart charging; broader OCPP 2.1 Ed2 coverage is still pending.
+- CI wiring for migration tests, retrieval quality, and golden-answer gates remains future work.
+- Migration rollback, backup, restore, and re-embedding runbooks still need to be formalized.
+- Local `mypy` validation is blocked by the Python interpreter missing `_sqlite3`, which makes mypy fail before project type checking starts.
+
 ## [v0.1.2] - 2026-05-27
 
 ### Added
