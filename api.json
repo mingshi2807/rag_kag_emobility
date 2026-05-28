@@ -511,6 +511,12 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -600,6 +606,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Document",
         "tags": [
           "admin"
@@ -671,6 +682,7 @@
     },
     "/ingest": {
       "post": {
+        "description": "Legacy mutation endpoint for direct PDF/JSON ingestion. Requires API_ADMIN_TOKEN bearer auth. Prefer the source-aware corpus CLI flow for OCPP 2.1 Ed2 PDF, Device Model, and JSON schema ingestion.",
         "operationId": "ingest_document_ingest_post",
         "parameters": [
           {
@@ -736,7 +748,12 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Ingest Document",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Legacy admin document ingestion",
         "tags": [
           "ingest"
         ]

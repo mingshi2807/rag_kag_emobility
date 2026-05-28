@@ -99,6 +99,11 @@ class LoggingConfig:
 
 
 @dataclass
+class ApiConfig:
+    admin_token: str = ""
+
+
+@dataclass
 class AppConfig:
     postgres: PostgresConfig = field(default_factory=PostgresConfig)
     deepseek: DeepSeekConfig = field(default_factory=DeepSeekConfig)
@@ -107,6 +112,7 @@ class AppConfig:
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    api: ApiConfig = field(default_factory=ApiConfig)
 
 
 # ── Loader ───────────────────────────────────────────────

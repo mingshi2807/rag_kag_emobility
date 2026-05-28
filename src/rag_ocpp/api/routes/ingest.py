@@ -1,4 +1,4 @@
-"""POST /ingest — document ingestion endpoint."""
+"""Legacy admin document ingestion endpoint."""
 
 from __future__ import annotations
 
@@ -12,12 +12,14 @@ from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from rag_ocpp.api.dependencies import (
+    get_audit_store,
     get_embedding_model,
     get_graph_store,
     get_pool,
     get_vector_store,
 )
 from rag_ocpp.api.schemas import IngestResponse
+from rag_ocpp.api.security import require_admin
 from rag_ocpp.chunking.engine import ChunkingEngine
 from rag_ocpp.embedding.batch import BatchEmbedder
 from rag_ocpp.embedding.model import EmbeddingModel
@@ -26,6 +28,8 @@ from rag_ocpp.ingestion.metadata import OCPPMetadataExtractor
 from rag_ocpp.ingestion.parser import DocumentParser
 from rag_ocpp.knowledge.extractor import EntityExtractor
 from rag_ocpp.knowledge.linker import EntityLinker
+from rag_ocpp.privacy import redact_value
+from rag_ocpp.storage.audit import AuditEvent, AuditStore
 from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.vector import ChunkInsert, VectorStore
 
@@ -34,17 +38,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("", response_model=IngestResponse)
+@router.post(
+    "",
+    response_model=IngestResponse,
+    summary="Legacy admin document ingestion",
+    description=(
+        "Legacy mutation endpoint for direct PDF/JSON ingestion. "
+        "Requires API_ADMIN_TOKEN bearer auth. Prefer the source-aware corpus "
+        "CLI flow for OCPP 2.1 Ed2 PDF, Device Model, and JSON schema ingestion."
+    ),
+)
 async def ingest_document(
     file: UploadFile,
     doc_type: str = "spec",
     protocol: str = "ocpp21",
     version: str = "2.1",
     request: Request = None,  # type: ignore[assignment]
+    _: None = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool),
     vector_store: VectorStore = Depends(get_vector_store),
     graph_store: GraphStore = Depends(get_graph_store),
     embedding_model: EmbeddingModel = Depends(get_embedding_model),
+    audit: AuditStore = Depends(get_audit_store),
 ):
     if not file.filename:
         return JSONResponse(status_code=400, content={"detail": "No filename"})
@@ -59,6 +74,21 @@ async def ingest_document(
         tmp_path = Path(tmp.name)
 
     try:
+        await _audit(
+            audit,
+            AuditEvent(
+                event_type="admin.ingest",
+                surface="api",
+                action="legacy_ingest",
+                metadata={
+                    "filename": file.filename,
+                    "doc_type": doc_type,
+                    "protocol": protocol,
+                    "version": version,
+                    "bytes": len(content),
+                },
+            ),
+        )
         parser = DocumentParser()
         parsed = parser.parse(tmp_path)
         parsed.doc_type = doc_type
@@ -112,13 +142,52 @@ async def ingest_document(
             if result.relations:
                 await linker.resolve_relations(result.relations)
 
-        return IngestResponse(
+        response = IngestResponse(
             document_id=doc_id, source_path=file.filename, doc_type=doc_type,
             protocol=protocol, version=version, part=meta.part,
             page_count=parsed.metadata.page_count,
             chunks_created=len(chunks), entities_extracted=entity_count,
             embedding_model=embedding_model.model_name,
         )
+        await _audit(
+            audit,
+            AuditEvent(
+                event_type="admin.ingest",
+                surface="api",
+                action="legacy_ingest",
+                resource_type="document",
+                resource_id=doc_id,
+                metadata={
+                    "filename": file.filename,
+                    "chunks_created": len(chunks),
+                    "entities_extracted": entity_count,
+                },
+            ),
+        )
+        return response
+
+    except Exception as exc:
+        await _audit(
+            audit,
+            AuditEvent(
+                event_type="admin.ingest",
+                surface="api",
+                action="legacy_ingest",
+                status="failure",
+                metadata={
+                    "filename": file.filename,
+                    "error": redact_value(exc, force=True),
+                },
+            ),
+        )
+        raise
 
     finally:
         tmp_path.unlink(missing_ok=True)
+
+
+async def _audit(audit: AuditStore, event: AuditEvent) -> None:
+    try:
+        await audit.record(event)
+    except Exception:
+        pass

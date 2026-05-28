@@ -110,6 +110,7 @@ PG_USER=rag_kag
 PG_PASSWORD=rag_kag
 DEEPSEEK_MODEL=deepseek-v4-pro
 LOG_REDACTION_ENABLED=true
+API_ADMIN_TOKEN=
 ```
 
 Use a repo-local Hugging Face cache:
@@ -122,6 +123,12 @@ Set DeepSeek credentials only when generation is needed:
 
 ```bash
 export DEEPSEEK_API_KEY=<your-key>
+```
+
+Set an admin token only when mutating API endpoints are needed:
+
+```bash
+export API_ADMIN_TOKEN=<admin-token>
 ```
 
 ## Database Setup
@@ -306,6 +313,39 @@ HF_HOME = "/home/ming/workspace/rag-kag-emobility.git/models"
 ```
 
 See [docs/mcp.md](docs/mcp.md) for full MCP tool schemas and client examples.
+
+## FastAPI Surface
+
+Run the API:
+
+```bash
+.venv/bin/uvicorn "rag_ocpp.api.app:create_app" --factory --host 0.0.0.0 --port 8000
+```
+
+Read endpoints:
+
+- `GET /health`
+- `GET /documents`
+- `GET /entities/{name}`
+- `GET /search`
+- `POST /query`
+- `POST /query/stream`
+
+Admin mutation endpoints:
+
+- `POST /ingest`
+- `DELETE /documents/{document_id}`
+
+Admin mutation endpoints are disabled unless `API_ADMIN_TOKEN` is configured.
+When enabled, call them with:
+
+```text
+Authorization: Bearer <admin-token>
+```
+
+`POST /ingest` is a legacy direct PDF/JSON ingestion endpoint. Prefer the
+source-aware corpus CLI flow for OCPP 2.1 Ed2 PDF, Device Model, and JSON schema
+ingestion until a dedicated corpus API is added.
 
 ## Private Knowledge Controls
 

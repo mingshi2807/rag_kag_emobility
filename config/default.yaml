@@ -68,3 +68,9 @@ logging:
   # Keep enabled outside local debugging. Set LOG_REDACTION_ENABLED=false to
   # inspect raw prompts/payloads in a controlled dev shell.
   redaction_enabled: "${oc.env:LOG_REDACTION_ENABLED,true}"
+
+# ── API ────────────────────────────────────────────────────
+api:
+  # Admin mutation endpoints are disabled when empty. Set API_ADMIN_TOKEN and
+  # send Authorization: Bearer <token> for legacy ingestion and document delete.
+  admin_token: "${oc.env:API_ADMIN_TOKEN,''}"

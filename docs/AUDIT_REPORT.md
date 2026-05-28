@@ -8,7 +8,7 @@
 
 The repository is a credible prototype, not an enterprise-grade private knowledge platform yet.
 
-The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader API/MCP contract tests, and operational runbooks.
+The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, admin-controlled API mutation endpoints, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader MCP contract tests, and operational runbooks.
 
 ## Strict Criteria
 
@@ -16,7 +16,7 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 | --- | --- | --- | --- |
 | Source-grounded retrieval | Partial | Vector, keyword, graph, RRF, rerank pipeline and R/Q/K eval baselines exist. | Coverage is still narrow outside the initial R/Q/K topics. |
 | KAG graph fidelity | Partial | Entity and relationship tables exist. | Relationship quality, provenance, and traversal precision are not measured. |
-| Private-data protection | Partial | Redacted logging and privacy-preserving audit events exist. | Source ACLs, retention/deletion policy, and tenant isolation are not complete. |
+| Private-data protection | Partial | Redacted logging, privacy-preserving audit events, and API admin mutation guards exist. | Source ACLs, retention/deletion policy, and tenant isolation are not complete. |
 | Reproducibility | Partial | Docker, CLI, migration commands, and install docs exist. | Docker bootstrap still uses `schema.sql`; broader rollback, backup, restore, and CI migration gates are not complete. |
 | Evaluation governance | Partial | Retrieval and generated-answer eval reports exist for R/Q/K topics. | Eval gates are not wired to CI and coverage beyond R/Q/K remains limited. |
 | Operational reliability | Partial | API, CLI, MCP, migrations, and API contract tests are present. | No runbook for backup, restore, re-index, rollback, model cache, or cold-start management. |
@@ -35,6 +35,7 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 - `docs/HANDOFF.md` reports implemented retrieval quality evals, generated-answer evals, redacted logging, audit events, and migrations.
 - `api.json` exports the FastAPI reference as OpenAPI `3.0.3`.
 - `tests/test_api/` covers API query/search contract behavior and exported OpenAPI schema drift.
+- Mutating API endpoints require configured `API_ADMIN_TOKEN` bearer auth; otherwise they are disabled.
 - `docs/mcp.md` documents nine MCP read tools and the Codex-assisted manual benchmark workflow.
 - `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` parameterize keyword/entity fallback SQL paths.
 - `tests/test_retrieval/test_vector_search.py` uses inserted document UUIDs and deterministic 1024-dimensional embeddings.

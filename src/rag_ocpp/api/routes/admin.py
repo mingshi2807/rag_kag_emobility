@@ -7,14 +7,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
 from rag_ocpp.api.dependencies import (
+    get_audit_store,
     get_embedding_model,
     get_graph_store,
     get_reranker,
     get_vector_store,
 )
 from rag_ocpp.api.schemas import DocumentResponse, EntityResponse, HealthResponse
+from rag_ocpp.api.security import require_admin
 from rag_ocpp.embedding.model import EmbeddingModel
+from rag_ocpp.privacy import redact_value
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
+from rag_ocpp.storage.audit import AuditEvent, AuditStore
 from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.vector import VectorStore
 
@@ -60,11 +64,52 @@ async def list_documents(
 @router.delete("/documents/{document_id}")
 async def delete_document(
     document_id: str,
+    _: None = Depends(require_admin),
     vs: VectorStore = Depends(get_vector_store),
+    audit: AuditStore = Depends(get_audit_store),
 ):
-    count = await vs.delete_document(UUID(document_id))
+    document_uuid = UUID(document_id)
+    try:
+        count = await vs.delete_document(document_uuid)
+    except Exception as exc:
+        await _audit(
+            audit,
+            AuditEvent(
+                event_type="admin.document_delete",
+                surface="api",
+                action="delete_document",
+                status="failure",
+                resource_type="document",
+                resource_id=document_id,
+                metadata={"error": redact_value(exc, force=True)},
+            ),
+        )
+        raise
     if count == 0:
+        await _audit(
+            audit,
+            AuditEvent(
+                event_type="admin.document_delete",
+                surface="api",
+                action="delete_document",
+                status="failure",
+                resource_type="document",
+                resource_id=document_id,
+                metadata={"reason": "not_found"},
+            ),
+        )
         raise HTTPException(status_code=404, detail="Not found")
+    await _audit(
+        audit,
+        AuditEvent(
+            event_type="admin.document_delete",
+            surface="api",
+            action="delete_document",
+            resource_type="document",
+            resource_id=document_id,
+            metadata={"deleted_chunks": count},
+        ),
+    )
     return {"status": "deleted", "document_id": document_id}
 
 
@@ -88,3 +133,10 @@ async def get_entity(
             for r in rels
         ],
     )
+
+
+async def _audit(audit: AuditStore, event: AuditEvent) -> None:
+    try:
+        await audit.record(event)
+    except Exception:
+        pass

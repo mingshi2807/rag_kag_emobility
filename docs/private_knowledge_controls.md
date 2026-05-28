@@ -71,6 +71,34 @@ This allows correlation and debugging without storing the private text itself.
 - CLI corpus store/index writes corpus ingestion/indexing events.
 - Legacy CLI ingest writes corpus ingestion events.
 - MCP writes tool access events and retrieval events for search/evidence tools.
+- FastAPI admin mutation endpoints require `API_ADMIN_TOKEN` bearer auth and
+  write audit events for legacy ingestion and document deletion.
+
+## Admin Mutation Guard
+
+Read-only FastAPI endpoints remain available without this guard. Mutating admin
+endpoints are disabled by default:
+
+```bash
+API_ADMIN_TOKEN=
+```
+
+Set a token only for controlled environments that need API mutation endpoints:
+
+```bash
+API_ADMIN_TOKEN=<admin-token>
+```
+
+Then call admin mutation endpoints with:
+
+```text
+Authorization: Bearer <admin-token>
+```
+
+Currently protected endpoints:
+
+- `POST /ingest` - legacy direct PDF/JSON ingestion endpoint.
+- `DELETE /documents/{document_id}` - document deletion endpoint.
 
 ## Remaining Controls
 
