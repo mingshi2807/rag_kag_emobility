@@ -24,6 +24,7 @@ from rag_ocpp.corpus.ocpp21 import (
 )
 from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.privacy import configure_redacted_logging
+from rag_ocpp.storage.audit import AuditEvent, AuditStore
 from rag_ocpp.storage.corpus import (
     CorpusRecordInsert,
     CorpusStore,
@@ -104,6 +105,7 @@ async def _corpus_async(
 
     total_records = 0
     try:
+        audit = AuditStore(pool) if pool is not None else None
         with Progress() as progress:
             task = progress.add_task("Building corpus...", total=len(planned))
             for source_path, parser_name in planned:
@@ -121,6 +123,23 @@ async def _corpus_async(
                         for record in records
                     ]
                     await store.upsert_corpus_records(inserts)
+                    if audit is not None:
+                        await audit.record(
+                            AuditEvent(
+                                event_type="corpus.ingested",
+                                surface="cli",
+                                action="corpus_store",
+                                resource_type="source_document",
+                                resource_id=source_id,
+                                metadata={
+                                    "source_type": source.source_type,
+                                    "source_path": source.source_path,
+                                    "content_hash": source.content_hash,
+                                    "records": len(records),
+                                    "raw_bytes": source.raw_bytes,
+                                },
+                            )
+                        )
                 progress.advance(task)
     finally:
         if pool is not None:
@@ -153,12 +172,31 @@ async def _index_corpus_async(
 
     pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
     try:
+        audit = AuditStore(pool)
         model = None if no_embed else EmbeddingModel(cfg.embedding)
         indexer = CorpusIndexer(pool, model)
         result = await indexer.index_all(
             embed=not no_embed,
             batch_size=batch_size,
             limit=limit,
+        )
+        await audit.record(
+            AuditEvent(
+                event_type="corpus.indexed",
+                surface="cli",
+                action="index_corpus",
+                metadata={
+                    "embed": not no_embed,
+                    "batch_size": batch_size,
+                    "limit": limit,
+                    "sources_indexed": result.sources_indexed,
+                    "records_indexed": result.records_indexed,
+                    "chunks_upserted": result.chunks_upserted,
+                    "chunks_embedded": result.chunks_embedded,
+                    "entities_linked": result.entities_linked,
+                    "relationships_created": result.relationships_created,
+                },
+            )
         )
     finally:
         await pool.close()

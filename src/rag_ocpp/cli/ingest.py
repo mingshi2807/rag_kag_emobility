@@ -21,6 +21,7 @@ from rag_ocpp.ingestion.parser import DocumentParser
 from rag_ocpp.knowledge.extractor import EntityExtractor
 from rag_ocpp.knowledge.linker import EntityLinker
 from rag_ocpp.privacy import configure_redacted_logging, redact_value
+from rag_ocpp.storage.audit import AuditEvent, AuditStore
 from rag_ocpp.storage.vector import ChunkInsert, VectorStore
 
 
@@ -60,6 +61,7 @@ async def _ingest_async(
     pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn); assert pool
     try:
         vs = VectorStore(pool)
+        audit = AuditStore(pool)
         model = EmbeddingModel(cfg.embedding)
         embedder = BatchEmbedder(pool, model, vs)
         linker = EntityLinker(pool)
@@ -71,7 +73,7 @@ async def _ingest_async(
             for fp in files:
                 progress.console.print(f"[bold]{fp.name}[/bold]")
                 try:
-                    cc, ce = await _one(fp, vs, pool, model, embedder, linker, extractor, doc_type, protocol, version, no_embed, no_entities)
+                    cc, ce = await _one(fp, vs, pool, model, embedder, linker, extractor, audit, doc_type, protocol, version, no_embed, no_entities)
                     tc += cc; te += ce
                     progress.console.print(f"  OK {cc} chunks, {ce} entities\n")
                 except Exception as exc:
@@ -83,7 +85,7 @@ async def _ingest_async(
         await pool.close()
 
 
-async def _one(fp, vs, pool, model, embedder, linker, extractor, doc_type, protocol, version, no_embed, no_entities):
+async def _one(fp, vs, pool, model, embedder, linker, extractor, audit, doc_type, protocol, version, no_embed, no_entities):
     parsed = DocumentParser().parse(fp); parsed.doc_type = doc_type
     cleaner = TextCleaner()
     for p in parsed.pages: p.text = cleaner.clean(p.text)
@@ -111,6 +113,27 @@ async def _one(fp, vs, pool, model, embedder, linker, extractor, doc_type, proto
             r = await extractor.extract(ci.content, ci.content_hash)
             if r.entities: await linker.resolve_and_link(ci.id, r.entities); ec += len(r.entities)
             if r.relations: await linker.resolve_relations(r.relations)
+
+    await audit.record(
+        AuditEvent(
+            event_type="corpus.ingested",
+            surface="cli",
+            action="ingest",
+            resource_type="document",
+            resource_id=doc_id,
+            metadata={
+                "source_path": fp.name,
+                "doc_type": doc_type,
+                "protocol": protocol,
+                "version": version,
+                "page_count": parsed.metadata.page_count,
+                "raw_bytes": fp.stat().st_size,
+                "chunks": len(chunks),
+                "entities": ec,
+                "embedded": not no_embed,
+            },
+        )
+    )
 
     return len(chunks), ec
 

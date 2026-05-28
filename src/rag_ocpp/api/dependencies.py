@@ -9,6 +9,7 @@ from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.generation.client import DeepSeekClient
 from rag_ocpp.retrieval.hybrid import HybridRetriever
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
+from rag_ocpp.storage.audit import AuditStore
 from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.vector import VectorStore
 
@@ -30,6 +31,9 @@ def get_vector_store(request: Request) -> VectorStore:
 
 def get_graph_store(request: Request) -> GraphStore:
     return GraphStore(request.app.state.pool)
+
+def get_audit_store(request: Request) -> AuditStore:
+    return AuditStore(request.app.state.pool)
 
 def get_llm_client(request: Request) -> DeepSeekClient:
     return DeepSeekClient(request.app.state.config.deepseek)

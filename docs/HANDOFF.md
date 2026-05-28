@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, and first redacted logging controls are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools and repeatable R/Q/K retrieval and generated-answer gates. It is still not enterprise-ready until source access controls, retention/deletion policy, audit events, migrations, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, and privacy-preserving audit events are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools and repeatable R/Q/K retrieval and generated-answer gates. It is still not enterprise-ready until source access controls, retention/deletion policy, migrations, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -41,6 +41,8 @@ Query -> vector + keyword + graph retrieval
 - `docs/mcp.md` now documents the Codex-assisted manual benchmark workflow: Codex uses MCP evidence tools, writes Markdown answers, and `rag eval-answers --from-answers-dir` scores them offline without DeepSeek or OpenAI API calls.
 - `tests/test_retrieval/test_vector_search.py` now uses inserted document UUIDs and deterministic 1024-dimensional embeddings, so vector, keyword, pending-embedding, and delete paths prove the intended storage contract.
 - `src/rag_ocpp/privacy.py` provides reusable redaction helpers and a logging filter. API, CLI, MCP, embedding batch, corpus, eval, and high-risk extraction logs now install or use redacted logging so secrets and long private payloads are masked before logs. Redaction is enabled by default and can be disabled only for controlled local debugging with `LOG_REDACTION_ENABLED=false`.
+- `src/rag_ocpp/storage/audit.py` and `audit_events` provide privacy-preserving audit events for query, retrieval, generation, corpus ingestion/indexing, and MCP access. Audit metadata stores hashes, lengths, IDs, counts, status, latency, and redacted metadata; it must not store raw private text.
+- `docs/private_knowledge_controls.md` defines the current redaction and audit-event controls.
 
 ## Strict Control Rules
 
@@ -52,7 +54,7 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Extend private-knowledge controls beyond redacted logging: source access model, retention/deletion policy, audit events, and secret-handling documentation.
+1. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
 2. Make migrations explicit instead of relying on manual DB mutation.
 3. Align API, CLI, and MCP generated-answer behavior with the golden-answer citation and Markdown contract.
 4. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
@@ -68,6 +70,7 @@ pytest
 docker compose up -d
 rag eval data/eval/queries.jsonl --top-k 10
 .venv/bin/pytest tests/test_privacy.py tests/test_retrieval/test_vector_search.py -q
+.venv/bin/pytest tests/test_storage/test_audit.py -q
 HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers --output reports/ocpp21-ed2-rqk-golden-answers.md
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers_codex-only --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
@@ -81,6 +84,7 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `docs/AUDIT_REPORT.md` - strict enterprise-readiness audit and improvement order.
 - `config/default.yaml` - current runtime tunables.
 - `src/rag_ocpp/storage/schema.sql` - database contract.
+- `src/rag_ocpp/storage/audit.py` - privacy-preserving audit event storage.
 - `src/rag_ocpp/corpus/ocpp21.py` - OCPP 2.1 Ed2 source-aware corpus parsers.
 - `src/rag_ocpp/corpus/indexer.py` - indexes corpus records into chunks, embeddings, and graph links.
 - `src/rag_ocpp/storage/corpus.py` - DB adapter for source documents and corpus records.

@@ -7,6 +7,7 @@ import pytest
 from testcontainers.postgres import PostgresContainer
 
 from rag_ocpp.storage.graph import GraphStore
+from rag_ocpp.storage.audit import AuditStore
 from rag_ocpp.storage.vector import VectorStore
 
 
@@ -98,6 +99,13 @@ async def pool(postgres_container):
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             query_text TEXT NOT NULL, top_chunks JSONB, top_scores JSONB,
             strategy TEXT, latency_ms INT, created_at TIMESTAMPTZ DEFAULT now())""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS audit_events (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            event_type TEXT NOT NULL, surface TEXT NOT NULL, action TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'success', actor_id TEXT, session_id TEXT,
+            correlation_id TEXT, resource_type TEXT, resource_id TEXT,
+            latency_ms INT, metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT now())""")
 
     yield pool
     await pool.close()
@@ -113,11 +121,16 @@ async def graph_store(pool) -> GraphStore:
     return GraphStore(pool)
 
 
+@pytest.fixture
+async def audit_store(pool) -> AuditStore:
+    return AuditStore(pool)
+
+
 @pytest.fixture(autouse=True)
 async def cleanup(pool):
     yield
     async with pool.acquire() as conn:
         await conn.execute(
             "TRUNCATE chunk_entities, relationships, entities, chunks, "
-            "documents, query_log CASCADE"
+            "documents, query_log, audit_events CASCADE"
         )

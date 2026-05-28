@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
+import uuid
 from typing import Any
 from uuid import UUID
 
@@ -18,6 +20,7 @@ from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
+from rag_ocpp.storage.audit import AuditEvent, AuditStore, sensitive_text_ref
 from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.vector import VectorStore
 
@@ -179,6 +182,7 @@ class OcppKnowledgeServer:
         self.retriever: HybridRetriever | None = None
         self.vector_store: VectorStore | None = None
         self.graph_store: GraphStore | None = None
+        self.audit_store: AuditStore | None = None
 
     async def start(self):
         load_config(); cfg = get_config()
@@ -188,6 +192,7 @@ class OcppKnowledgeServer:
         self.retriever = HybridRetriever(pool=self.pool, embedding_model=embedding, reranker=reranker, final_top_k=20)
         self.vector_store = VectorStore(self.pool)
         self.graph_store = GraphStore(self.pool)
+        self.audit_store = AuditStore(self.pool)
         logger.info("MCP server started.")
 
     async def stop(self):
@@ -195,10 +200,26 @@ class OcppKnowledgeServer:
 
 
 async def _search(srv, args):
+    correlation_id = args.get("_correlation_id")
     top_k = _clamp_int(args.get("top_k", 8), 1, 20)
     max_chars = _clamp_int(args.get("max_chars", 1200), 200, 6000)
     filters = _filters(args)
     r = await srv.retriever.retrieve(args["query"], filters=filters)
+    await _audit(
+        srv,
+        AuditEvent(
+            event_type="retrieval.completed",
+            surface="mcp",
+            action="search_ocpp_knowledge",
+            correlation_id=correlation_id,
+            latency_ms=r.latency_ms,
+            metadata={
+                "query": sensitive_text_ref(args["query"]),
+                "chunks": len(r.chunks),
+                "strategy_breakdown": r.strategy_breakdown,
+            },
+        ),
+    )
     chunks = r.chunks[:top_k]
     lines = [
         f"# OCPP Knowledge Search\n\nQuery: `{args['query']}`\n\n"
@@ -210,9 +231,25 @@ async def _search(srv, args):
 
 
 async def _evidence_pack(srv, args):
+    correlation_id = args.get("_correlation_id")
     top_k = _clamp_int(args.get("top_k", 12), 1, 20)
     max_chars = _clamp_int(args.get("max_chars", 1800), 200, 8000)
     r = await srv.retriever.retrieve(args["query"])
+    await _audit(
+        srv,
+        AuditEvent(
+            event_type="retrieval.completed",
+            surface="mcp",
+            action="get_ocpp_evidence_pack",
+            correlation_id=correlation_id,
+            latency_ms=r.latency_ms,
+            metadata={
+                "query": sensitive_text_ref(args["query"]),
+                "chunks": len(r.chunks),
+                "strategy_breakdown": r.strategy_breakdown,
+            },
+        ),
+    )
     chunks = r.chunks[:top_k]
     groups: dict[str, list[Any]] = {"spec": [], "device_model": [], "schema": [], "unknown": []}
     for chunk in chunks:
@@ -237,6 +274,7 @@ async def _evidence_pack(srv, args):
 
 
 async def _implementation_brief(srv, args):
+    correlation_id = args.get("_correlation_id")
     feature = args["feature"]
     query = args.get("query") or (
         f"For {feature} implementation in OCPP 2.1 Ed2, combine Part 2 normative "
@@ -249,6 +287,7 @@ async def _implementation_brief(srv, args):
             "query": query,
             "top_k": args.get("top_k", 14),
             "max_chars": args.get("max_chars", 1600),
+            "_correlation_id": correlation_id,
         },
     )
     return (
@@ -498,6 +537,15 @@ def _json_block(value: Any) -> str:
     return "```json\n" + json.dumps(value, indent=2, default=str) + "\n```"
 
 
+async def _audit(srv, event: AuditEvent) -> None:
+    if srv.audit_store is None:
+        return
+    try:
+        await srv.audit_store.record(event)
+    except Exception as exc:
+        logger.warning("Audit event write failed: %s", exc)
+
+
 async def main():
     load_config()
     cfg = get_config()
@@ -514,6 +562,9 @@ async def main():
     @srv.call_tool()
     async def ct(name: str, arguments: dict | None):
         args = arguments or {}
+        correlation_id = str(uuid.uuid4())
+        args["_correlation_id"] = correlation_id
+        t0 = time.monotonic()
         handlers = {
             "search_ocpp_knowledge": _search,
             "get_ocpp_evidence_pack": _evidence_pack,
@@ -528,8 +579,38 @@ async def main():
         h = handlers.get(name)
         if not h: return [TextContent(type="text", text=f"Unknown: {name}")]
         try:
-            return [TextContent(type="text", text=await h(ocpp, args))]
+            result = await h(ocpp, args)
+            await _audit(
+                ocpp,
+                AuditEvent(
+                    event_type="mcp.access",
+                    surface="mcp",
+                    action=name,
+                    correlation_id=correlation_id,
+                    latency_ms=int((time.monotonic() - t0) * 1000),
+                    metadata={
+                        "argument_keys": sorted(k for k in args if not k.startswith("_")),
+                        "result_length": len(result),
+                    },
+                ),
+            )
+            return [TextContent(type="text", text=result)]
         except Exception as e:
+            await _audit(
+                ocpp,
+                AuditEvent(
+                    event_type="mcp.access",
+                    surface="mcp",
+                    action=name,
+                    status="failure",
+                    correlation_id=correlation_id,
+                    latency_ms=int((time.monotonic() - t0) * 1000),
+                    metadata={
+                        "argument_keys": sorted(k for k in args if not k.startswith("_")),
+                        "error": str(e),
+                    },
+                ),
+            )
             return [TextContent(type="text", text=f"Error: {e}")]
 
     async with stdio_server() as (rs, ws):

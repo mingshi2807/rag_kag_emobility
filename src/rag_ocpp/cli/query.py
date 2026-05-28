@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 
 import asyncpg
 import typer
@@ -12,9 +13,10 @@ import typer
 from rag_ocpp.config import get_config, load_config
 from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.generation.client import DeepSeekClient
-from rag_ocpp.privacy import configure_redacted_logging
+from rag_ocpp.privacy import configure_redacted_logging, redact_value
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
+from rag_ocpp.storage.audit import AuditEvent, AuditStore, sensitive_text_ref
 
 
 
@@ -42,8 +44,26 @@ async def _query_async(query_text, top_k, stream, doc_type, evidence_layer):
 
     pool = await asyncpg.create_pool(dsn=cfg.postgres.dsn)
     assert pool
+    audit = AuditStore(pool)
+    correlation_id = str(uuid.uuid4())
 
     try:
+        await _audit(
+            audit,
+            AuditEvent(
+                event_type="query.requested",
+                surface="cli",
+                action="query",
+                correlation_id=correlation_id,
+                metadata={
+                    "query": sensitive_text_ref(query_text),
+                    "top_k": top_k,
+                    "doc_type": doc_type,
+                    "evidence_layer": evidence_layer,
+                    "stream": stream,
+                },
+            ),
+        )
         embedding = EmbeddingModel(cfg.embedding); embedding.load()
         reranker = CrossEncoderReranker(cfg.reranker); reranker.load()
         retriever = HybridRetriever(pool=pool, embedding_model=embedding, reranker=reranker, final_top_k=top_k)
@@ -55,6 +75,22 @@ async def _query_async(query_text, top_k, stream, doc_type, evidence_layer):
             filters=SearchFilters(doc_type=doc_type, evidence_layer=evidence_layer),
         )
         rms = int((time.monotonic() - t0) * 1000)
+        await _audit(
+            audit,
+            AuditEvent(
+                event_type="retrieval.completed",
+                surface="cli",
+                action="retrieve",
+                correlation_id=correlation_id,
+                latency_ms=retrieval.latency_ms,
+                metadata={
+                    "query": sensitive_text_ref(query_text),
+                    "chunks": len(retrieval.chunks),
+                    "strategy_breakdown": retrieval.strategy_breakdown,
+                    "chunk_ids": [str(c.chunk_id) for c in retrieval.chunks],
+                },
+            ),
+        )
 
         typer.echo(f"\n{len(retrieval.chunks)} chunks ({retrieval.strategy_breakdown}) in {rms}ms\n")
         typer.echo("─" * 60)
@@ -86,14 +122,92 @@ async def _query_async(query_text, top_k, stream, doc_type, evidence_layer):
 
         if stream:
             typer.echo("\nAnswer:\n")
-            async for token in llm.generate_stream(query_text, ctx):
-                typer.echo(token, nl=False)
-            typer.echo()
+            token_count = 0
+            try:
+                async for token in llm.generate_stream(query_text, ctx):
+                    token_count += 1
+                    typer.echo(token, nl=False)
+                typer.echo()
+                await _audit(
+                    audit,
+                    AuditEvent(
+                        event_type="generation.completed",
+                        surface="cli",
+                        action="generate_stream",
+                        correlation_id=correlation_id,
+                        metadata={
+                            "query": sensitive_text_ref(query_text),
+                            "model": llm.model,
+                            "context_chunks": len(ctx),
+                            "stream_tokens": token_count,
+                        },
+                    ),
+                )
+            except Exception as exc:
+                await _audit(
+                    audit,
+                    AuditEvent(
+                        event_type="generation.failed",
+                        surface="cli",
+                        action="generate_stream",
+                        status="failure",
+                        correlation_id=correlation_id,
+                        metadata={
+                            "query": sensitive_text_ref(query_text),
+                            "model": llm.model,
+                            "error": redact_value(exc, force=True),
+                        },
+                    ),
+                )
+                raise
         else:
             typer.echo("\nGenerating...")
-            answer = await llm.generate(query_text, ctx)
+            try:
+                answer = await llm.generate(query_text, ctx)
+                await _audit(
+                    audit,
+                    AuditEvent(
+                        event_type="generation.completed",
+                        surface="cli",
+                        action="generate",
+                        correlation_id=correlation_id,
+                        metadata={
+                            "query": sensitive_text_ref(query_text),
+                            "model": llm.model,
+                            "context_chunks": len(ctx),
+                            "answer_length": len(answer),
+                        },
+                    ),
+                )
+            except Exception as exc:
+                await _audit(
+                    audit,
+                    AuditEvent(
+                        event_type="generation.failed",
+                        surface="cli",
+                        action="generate",
+                        status="failure",
+                        correlation_id=correlation_id,
+                        metadata={
+                            "query": sensitive_text_ref(query_text),
+                            "model": llm.model,
+                            "error": redact_value(exc, force=True),
+                        },
+                    ),
+                )
+                raise
             typer.echo(f"\n{answer}\n")
 
         typer.echo(f"(total: {int((time.monotonic()-t0)*1000)}ms)")
     finally:
         await pool.close()
+
+
+async def _audit(audit: AuditStore, event: AuditEvent) -> None:
+    try:
+        await audit.record(event)
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "Audit event write failed: %s",
+            redact_value(exc),
+        )

@@ -43,14 +43,19 @@ def is_redaction_enabled() -> bool:
     return _REDACTION_ENABLED
 
 
-def redact_text(text: str, *, max_chars: int | None = 240) -> str:
+def redact_text(
+    text: str,
+    *,
+    max_chars: int | None = 240,
+    force: bool = False,
+) -> str:
     """Redact secrets and bound arbitrary text before it reaches logs.
 
     If ``max_chars`` is set and the sanitized string is longer, the content is
     replaced with a length and digest marker instead of a preview. This avoids
     leaking proprietary spec chunks, prompts, generated answers, or LLM payloads.
     """
-    if not _REDACTION_ENABLED:
+    if not force and not _REDACTION_ENABLED:
         return text
 
     sanitized = _BEARER_RE.sub("Bearer [REDACTED]", text)
@@ -65,15 +70,20 @@ def redact_text(text: str, *, max_chars: int | None = 240) -> str:
     return sanitized
 
 
-def redact_value(value: Any, *, max_chars: int | None = 240) -> Any:
+def redact_value(
+    value: Any,
+    *,
+    max_chars: int | None = 240,
+    force: bool = False,
+) -> Any:
     """Redact secrets recursively in common logging values."""
-    if not _REDACTION_ENABLED:
+    if not force and not _REDACTION_ENABLED:
         return value
 
     if isinstance(value, BaseException):
-        return redact_text(str(value), max_chars=max_chars)
+        return redact_text(str(value), max_chars=max_chars, force=force)
     if isinstance(value, str):
-        return redact_text(value, max_chars=max_chars)
+        return redact_text(value, max_chars=max_chars, force=force)
     if isinstance(value, Mapping):
         redacted: dict[Any, Any] = {}
         for key, item in value.items():
@@ -81,14 +91,18 @@ def redact_value(value: Any, *, max_chars: int | None = 240) -> Any:
             if key_text in _SENSITIVE_KEYS:
                 redacted[key] = "[REDACTED]"
             else:
-                redacted[key] = redact_value(item, max_chars=max_chars)
+                redacted[key] = redact_value(item, max_chars=max_chars, force=force)
         return redacted
     if isinstance(value, tuple):
-        return tuple(redact_value(item, max_chars=max_chars) for item in value)
+        return tuple(
+            redact_value(item, max_chars=max_chars, force=force) for item in value
+        )
     if isinstance(value, list):
-        return [redact_value(item, max_chars=max_chars) for item in value]
+        return [redact_value(item, max_chars=max_chars, force=force) for item in value]
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
-        return type(value)(redact_value(item, max_chars=max_chars) for item in value)
+        return type(value)(
+            redact_value(item, max_chars=max_chars, force=force) for item in value
+        )
     return value
 
 
