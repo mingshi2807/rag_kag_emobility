@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, and privacy-preserving audit events are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools and repeatable R/Q/K retrieval and generated-answer gates. It is still not enterprise-ready until source access controls, retention/deletion policy, migrations, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, and explicit DB migrations are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, and a migration ledger for controlled schema setup. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -25,6 +25,9 @@ Query -> vector + keyword + graph retrieval
 - `pyproject.toml` defines a Python 3.12 package named `rag-kag-ocpp` with CLI entries `rag` and `rag-mcp`.
 - `config/default.yaml` currently sets BGE-large embeddings at 1024 dimensions and recursive spec chunking at 1024 tokens.
 - `src/rag_ocpp/storage/schema.sql` now declares `chunks.embedding VECTOR(1024)` and adds `source_documents` plus `corpus_records`.
+- `src/rag_ocpp/storage/migrations.py` and `src/rag_ocpp/storage/migrations/` provide explicit SQL migrations tracked by `schema_migrations`, including a legacy repair migration for missing `audit_events`.
+- `rag migrate`, `rag migrate --dry-run`, `rag migrate --baseline`, and `rag migrate-status` expose the DB migration workflow through the CLI.
+- `docs/db_migrations.md` documents fresh database setup and legacy `schema.sql` baseline adoption.
 - `src/rag_ocpp/corpus/` normalizes source-aware evidence records from the OCPP 2.1 Ed2 Part 2 PDF, Device Model CSV/XLSX files, and JSON schemas.
 - `src/rag_ocpp/cli/corpus.py` adds `rag corpus`, defaulting to dry-run preview; use `--store` to write source/corpus records.
 - `rag index-corpus` indexes stored corpus records into `chunks`, embeddings, graph entities, chunk/entity links, and source-definition relationships.
@@ -54,12 +57,11 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
-2. Make migrations explicit instead of relying on manual DB mutation.
-3. Align API, CLI, and MCP generated-answer behavior with the golden-answer citation and Markdown contract.
-4. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
-5. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, and restore.
-6. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
+1. Align API, CLI, and MCP generated-answer behavior with the golden-answer citation and Markdown contract.
+2. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
+3. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
+4. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
+5. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
 
 ## Verification Commands
 
@@ -71,6 +73,8 @@ docker compose up -d
 rag eval data/eval/queries.jsonl --top-k 10
 .venv/bin/pytest tests/test_privacy.py tests/test_retrieval/test_vector_search.py -q
 .venv/bin/pytest tests/test_storage/test_audit.py -q
+.venv/bin/pytest tests/test_storage/test_migrations.py -q
+.venv/bin/rag migrate-status
 HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers --output reports/ocpp21-ed2-rqk-golden-answers.md
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers_codex-only --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
@@ -84,6 +88,8 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `docs/AUDIT_REPORT.md` - strict enterprise-readiness audit and improvement order.
 - `config/default.yaml` - current runtime tunables.
 - `src/rag_ocpp/storage/schema.sql` - database contract.
+- `src/rag_ocpp/storage/migrations.py` - explicit SQL migration runner.
+- `src/rag_ocpp/storage/migrations/` - versioned SQL migrations.
 - `src/rag_ocpp/storage/audit.py` - privacy-preserving audit event storage.
 - `src/rag_ocpp/corpus/ocpp21.py` - OCPP 2.1 Ed2 source-aware corpus parsers.
 - `src/rag_ocpp/corpus/indexer.py` - indexes corpus records into chunks, embeddings, and graph links.

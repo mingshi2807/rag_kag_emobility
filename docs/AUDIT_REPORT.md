@@ -1,6 +1,6 @@
 # Enterprise Audit Report: RAG/KAG E-Mobility Knowledge Base
 
-**Date:** 2026-05-25
+**Date:** 2026-05-28
 **Scope:** Local repository audit of source, config, tests, and every file under `docs/`.
 **Purpose:** Assess readiness for an enterprise private knowledge base using LLM, RAG, and KAG integration.
 
@@ -8,80 +8,81 @@
 
 The repository is a credible prototype, not an enterprise-grade private knowledge platform yet.
 
-The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, and documented intent. The weakest parts are enterprise controls: measurable quality gates, schema migrations, private-data safeguards, SQL hardening, reproducibility, and current-state documentation accuracy.
+The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, explicit DB migrations, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader API/MCP contract tests, and operational runbooks.
 
 ## Strict Criteria
 
 | Criterion | Status | Evidence | Enterprise Risk |
 | --- | --- | --- | --- |
-| Source-grounded retrieval | Partial | Vector, keyword, graph, RRF, rerank pipeline exists. | No verified baseline means answer quality cannot be governed. |
+| Source-grounded retrieval | Partial | Vector, keyword, graph, RRF, rerank pipeline and R/Q/K eval baselines exist. | Coverage is still narrow outside the initial R/Q/K topics. |
 | KAG graph fidelity | Partial | Entity and relationship tables exist. | Relationship quality, provenance, and traversal precision are not measured. |
-| Private-data protection | Weak | Config reads secrets from env and `.env`. | No documented redaction, access control, retention, tenant isolation, or prompt/context logging policy. |
-| Reproducibility | Weak | Docker, CLI, and install docs exist. | No migration system, missing README target, stale docs, and model/schema drift. |
-| Evaluation governance | Weak | Eval tooling is referenced. | Handoff says eval UUIDs are stale and baseline is unknown. |
+| Private-data protection | Partial | Redacted logging and privacy-preserving audit events exist. | Source ACLs, retention/deletion policy, and tenant isolation are not complete. |
+| Reproducibility | Partial | Docker, CLI, migration commands, and install docs exist. | Docker bootstrap still uses `schema.sql`; broader rollback, backup, restore, and CI migration gates are not complete. |
+| Evaluation governance | Partial | Retrieval and generated-answer eval reports exist for R/Q/K topics. | Eval gates are not wired to CI and coverage beyond R/Q/K remains limited. |
 | Operational reliability | Weak | API, CLI, MCP are present. | No runbook for backup, restore, re-index, rollback, model cache, or cold-start management. |
-| Security posture | Weak | Basic env-based secrets are used. | Dynamic SQL uses raw query terms in keyword and graph fallbacks. |
+| Security posture | Partial | Basic env-based secrets, SQL parameterization hardening, redacted logs, and audit events exist. | Source ACLs, retention controls, and API/MCP contract tests are still incomplete. |
 | Documentation accuracy | Weak | `/docs` has useful design notes. | Several docs contradict current config and schema. |
 
 ## Evidence
 
 - `pyproject.toml` declares Python 3.12, production dependencies, dev dependencies, and scripts `rag` plus `rag-mcp`.
 - `config/default.yaml` sets `BAAI/bge-large-en-v1.5`, `dims: 1024`, and spec chunking as `recursive` with `chunk_size: 1024`.
-- `src/rag_ocpp/storage/schema.sql` still declares `embedding VECTOR(768)`.
+- `src/rag_ocpp/storage/schema.sql` declares `embedding VECTOR(1024)`.
+- `src/rag_ocpp/storage/migrations.py` and `src/rag_ocpp/storage/migrations/` provide explicit SQL migrations tracked in `schema_migrations`, including legacy repair for missing `audit_events`.
+- `docs/db_migrations.md` documents fresh DB migration setup and legacy `schema.sql` baseline adoption.
 - `docs/ingest.md` describes SDPM chunking, 512-token chunks, 64 overlap, BGE-base, GPU batch 256, and 768-dimensional memory estimates.
 - `docs/dev_journey.md` describes BGE-base 768-dimensional architecture and SDPM 512/64 chunking.
-- `docs/HANDOFF.md` reported functional hybrid retrieval but unknown eval scores and stale eval UUIDs.
-- `docs/mcp.md` documents six MCP tools, stdio-only transport, OCPP-only scope, and no ingest tools.
-- `src/rag_ocpp/storage/vector.py` builds ILIKE fallback SQL with raw query words.
-- `src/rag_ocpp/storage/graph.py` builds entity-name fallback SQL with raw query words and traversal relation filters through string interpolation.
-- `tests/test_retrieval/test_vector_search.py` creates random document UUIDs after inserting documents instead of using the returned document ID.
+- `docs/HANDOFF.md` reports implemented retrieval quality evals, generated-answer evals, redacted logging, audit events, and migrations.
+- `docs/mcp.md` documents nine MCP read tools and the Codex-assisted manual benchmark workflow.
+- `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` parameterize keyword/entity fallback SQL paths.
+- `tests/test_retrieval/test_vector_search.py` uses inserted document UUIDs and deterministic 1024-dimensional embeddings.
 
 ## Ranked Findings
 
-### 1. Schema, Config, and Docs Are Inconsistent
+### 1. Schema, Config, and Docs Still Need Full Lifecycle Governance
+
+**Severity:** High
+**Confidence:** Medium
+
+The runtime config and schema now agree on 1024-dimensional BGE-large embeddings, and explicit migrations exist. `/docs` still contains older BGE-base and SDPM/512-token assumptions, and Docker Compose still bootstraps local databases from `schema.sql` for compatibility.
+
+**Required improvement:** Keep migrations as the authoritative schema path, refresh stale historical docs, add rollback/backup/restore runbooks, and record the re-embedding procedure.
+
+### 2. Retrieval Quality Governance Is Still Narrow
 
 **Severity:** Critical
 **Confidence:** High
 
-The runtime config expects 1024-dimensional BGE-large embeddings, while the schema file still creates `VECTOR(768)`. `/docs` still contains older BGE-base and SDPM/512-token assumptions. This can break fresh database setup, confuse future re-ingestion, and make audit evidence unreliable.
+R/Q/K retrieval quality and generated-answer baselines exist, but they focus on Section R DER, Section Q V2X, and Section K smart charging. Without broader protocol coverage and CI enforcement, retrieval tuning is not fully enterprise-controlled.
 
-**Required improvement:** Introduce explicit DB migrations, align schema to the chosen embedding model, update all docs, and record the re-embedding procedure.
+**Required improvement:** Extend eval cases beyond R/Q/K, store metrics artifacts, and fail CI on regressions after the CI/model/API assumptions are ready.
 
-### 2. Retrieval Quality Is Not Governed
+### 3. Input Contract Hardening Is Incomplete
 
-**Severity:** Critical
-**Confidence:** High
+**Severity:** High
+**Confidence:** Medium
 
-The handoff says eval scores are unknown and UUIDs need regeneration. Without Recall@k, MRR, NDCG, source coverage, citation accuracy, and answer faithfulness checks, retrieval tuning is not enterprise-controlled.
+Keyword/entity fallback SQL paths have been parameterized, but enterprise private-knowledge systems must still treat CLI, API, and MCP inputs as untrusted across all access surfaces.
 
-**Required improvement:** Version `data/eval/queries.jsonl`, regenerate valid ground truth, store metrics artifacts, and fail CI on regressions after a baseline is accepted.
-
-### 3. SQL Construction Is Unsafe for Enterprise Inputs
-
-**Severity:** Critical
-**Confidence:** High
-
-Keyword ILIKE fallback and graph entity fallback interpolate query terms into SQL. Graph traversal interpolates relation filters and max depth. Even if inputs are usually internal, enterprise private-knowledge systems must treat queries and MCP tool inputs as untrusted.
-
-**Required improvement:** Parameterize fallback SQL, validate relation types against an allowlist, clamp numeric bounds, and add regression tests for hostile query strings.
+**Required improvement:** Add shared API/CLI/MCP validation, broaden hostile-input tests, validate relation types against an allowlist, and clamp numeric bounds.
 
 ### 4. Private Knowledge Controls Are Missing
 
 **Severity:** High
 **Confidence:** High
 
-The system handles proprietary protocol documents and generated answers, but there is no documented access model, data classification, redaction, log policy, prompt retention policy, audit-event schema, or source-level authorization.
+The system handles proprietary protocol documents and generated answers. Redacted logging, audit events, and private-knowledge control documentation now exist, but there is no complete source-level authorization, deletion, retention, or tenant-isolation model.
 
-**Required improvement:** Add a privacy/security design doc, implement redacted structured logging, avoid storing raw prompts/context by default, and add source ACL metadata before multi-user use.
+**Required improvement:** Add source ACL metadata before multi-user use, define retention/deletion behavior, and keep avoiding raw prompt/context/source logging by default.
 
 ### 5. Tests Do Not Establish Enterprise Confidence
 
 **Severity:** High
 **Confidence:** Medium
 
-Tests exist for chunking, ingestion cleaning, metadata, extraction, and vector search, but the retrieval integration test appears to use wrong document IDs. Docker-backed tests may skip entirely. There are no API/MCP contract tests, generation safety tests, migration tests, or retrieval quality tests.
+Tests exist for chunking, ingestion cleaning, metadata, extraction, vector search, audit events, and migrations. Docker-backed tests may skip entirely. API/MCP contract tests and broader generation safety tests are still incomplete.
 
-**Required improvement:** Repair integration fixtures, add API/MCP contract tests, add eval tests, and record skipped integration tests as an explicit CI signal.
+**Required improvement:** Add API/MCP contract tests, broaden eval tests, and record skipped integration tests as an explicit CI signal.
 
 ### 6. Operations Are Under-Specified
 
@@ -103,10 +104,10 @@ MCP docs say `top_k` defaults to 5 and maxes at 20, while server startup initial
 
 ## Ordered Improvement Roadmap
 
-1. **Stabilize the data contract.** Fix embedding dimension drift, add migrations, document the active model/chunking contract, and update stale docs.
-2. **Close SQL safety gaps.** Parameterize keyword and graph fallback queries, validate traversal inputs, and add hostile-input tests.
-3. **Repair the test baseline.** Fix document IDs in retrieval tests, run unit tests, and make Docker skips visible in CI.
-4. **Create the eval gate.** Build a curated e-mobility query set with expected chunks, entities, protocols, and citation requirements. Track Recall@5/10, MRR, NDCG, graph contribution, latency, and hallucination checks.
+1. **Stabilize the data contract lifecycle.** Keep schema changes migration-first, document rollback/re-embedding, and update stale docs.
+2. **Close remaining input-contract gaps.** Share API/CLI/MCP validation, validate traversal inputs, and add hostile-input tests.
+3. **Broaden the test baseline.** Add API/MCP contract tests, run unit tests, and make Docker skips visible in CI.
+4. **Expand the eval gate.** Extend curated e-mobility query sets with expected chunks, entities, protocols, and citation requirements. Track Recall@5/10, MRR, NDCG, graph contribution, latency, and hallucination checks.
 5. **Add privacy controls.** Define data classes, source ACLs, secret handling, redacted logging, prompt/context retention, deletion, and audit events.
 6. **Make ingestion production-grade.** Add idempotent job records, chunk provenance, checksum manifests, failed-page capture, reprocessing controls, and source versioning.
 7. **Improve KAG quality.** Add relationship provenance, confidence calibration, entity alias governance, cross-protocol mapping review, and traversal explainability.
@@ -126,10 +127,10 @@ MCP docs say `top_k` defaults to 5 and maxes at 20, while server startup initial
 
 This project should not be treated as enterprise-ready until all of the following are true:
 
-- Fresh database setup succeeds from migrations.
+- Fresh database setup succeeds from migrations and migration tests run in CI.
 - Config, schema, docs, and model dimensions agree.
 - Retrieval has a recorded baseline and regression gate.
-- SQL hardening is complete for query/MCP/API inputs.
+- Input validation and hostile-input tests are complete for query/MCP/API inputs.
 - Private-data logging, retention, ACL, and audit policies are implemented.
 - API, CLI, and MCP contracts are tested.
 - Operational runbooks exist and have been smoke-tested.
