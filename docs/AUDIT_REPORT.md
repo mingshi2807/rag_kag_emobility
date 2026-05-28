@@ -8,7 +8,7 @@
 
 The repository is a credible prototype, not an enterprise-grade private knowledge platform yet.
 
-The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, admin-controlled API mutation endpoints, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader MCP contract tests, and operational runbooks.
+The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, admin-controlled API mutation endpoints, source-aware corpus API operations, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader MCP contract tests, and operational runbooks.
 
 ## Strict Criteria
 
@@ -34,8 +34,9 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 - `docs/dev_journey.md` describes BGE-base 768-dimensional architecture and SDPM 512/64 chunking.
 - `docs/HANDOFF.md` reports implemented retrieval quality evals, generated-answer evals, redacted logging, audit events, and migrations.
 - `api.json` exports the FastAPI reference as OpenAPI `3.0.3`.
-- `tests/test_api/` covers API query/search contract behavior and exported OpenAPI schema drift.
+- `tests/test_api/` covers API query/search contract behavior, admin mutation guards, source-aware corpus API behavior, and exported OpenAPI schema drift.
 - Mutating API endpoints require configured `API_ADMIN_TOKEN` bearer auth; otherwise they are disabled.
+- `POST /corpus/preview`, `POST /corpus/store`, and `POST /corpus/index` provide the preferred source-aware OCPP corpus API path. `GET /corpus/status` exposes read-only corpus/index counts.
 - `docs/mcp.md` documents nine MCP read tools and the Codex-assisted manual benchmark workflow.
 - `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` parameterize keyword/entity fallback SQL paths.
 - `tests/test_retrieval/test_vector_search.py` uses inserted document UUIDs and deterministic 1024-dimensional embeddings.

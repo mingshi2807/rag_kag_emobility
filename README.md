@@ -35,6 +35,8 @@ Implemented:
 - Privacy-preserving audit events for query, retrieval, generation, corpus
   ingestion/indexing, and MCP access.
 - Explicit SQL migrations with a `schema_migrations` ledger.
+- FastAPI query/search contracts plus admin-controlled source-aware corpus
+  preview, store, and index endpoints.
 
 Not yet enterprise-complete:
 
@@ -327,12 +329,16 @@ Read endpoints:
 - `GET /health`
 - `GET /documents`
 - `GET /entities/{name}`
+- `GET /corpus/status`
 - `GET /search`
 - `POST /query`
 - `POST /query/stream`
 
 Admin mutation endpoints:
 
+- `POST /corpus/preview`
+- `POST /corpus/store`
+- `POST /corpus/index`
 - `POST /ingest`
 - `DELETE /documents/{document_id}`
 
@@ -343,9 +349,14 @@ When enabled, call them with:
 Authorization: Bearer <admin-token>
 ```
 
+`POST /corpus/preview` reads selected private source files and returns only
+counts plus source summaries. `POST /corpus/store` writes normalized
+`source_documents` and `corpus_records`. `POST /corpus/index` indexes stored
+records into chunks, embeddings, and graph links.
+
 `POST /ingest` is a legacy direct PDF/JSON ingestion endpoint. Prefer the
-source-aware corpus CLI flow for OCPP 2.1 Ed2 PDF, Device Model, and JSON schema
-ingestion until a dedicated corpus API is added.
+source-aware corpus CLI or `/corpus/*` API flow for OCPP 2.1 Ed2 PDF, Device
+Model, and JSON schema ingestion.
 
 ## Private Knowledge Controls
 

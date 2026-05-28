@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, upgraded FastAPI query/search contracts, and admin-controlled API mutation endpoints are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, and OpenAPI 3.0.3 API reference output. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, and dedicated source-aware corpus API endpoints are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, and OpenAPI 3.0.3 API reference output. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -48,6 +48,7 @@ Query -> vector + keyword + graph retrieval
 - `docs/private_knowledge_controls.md` defines the current redaction and audit-event controls.
 - `src/rag_ocpp/api/routes/query.py` aligns FastAPI query/search with source-aware filters (`evidence_layer`, `source_type`), request `top_k`, content controls, correlation IDs, redacted errors, and source metadata in chunk responses.
 - `src/rag_ocpp/api/security.py` requires `API_ADMIN_TOKEN` bearer auth for mutating admin API endpoints. `POST /ingest` is documented as a legacy/admin direct-ingestion endpoint; `DELETE /documents/{document_id}` is also admin-protected.
+- `src/rag_ocpp/api/routes/corpus.py` adds `GET /corpus/status` plus admin-controlled `POST /corpus/preview`, `POST /corpus/store`, and `POST /corpus/index` for the source-aware OCPP 2.1 Ed2 PDF, Device Model, and JSON schema corpus path.
 - `api.json` exports the FastAPI reference as OpenAPI `3.0.3` for API consumers.
 
 ## Strict Control Rules
@@ -61,11 +62,11 @@ Query -> vector + keyword + graph retrieval
 ## Ordered Next Actions
 
 1. Finish API/CLI/MCP generated-answer parity with the golden-answer citation and Markdown contract.
-2. Design dedicated source-aware corpus API endpoints (`/corpus/preview`, `/corpus/store`, `/corpus/index`, `/corpus/status`) instead of expanding legacy `/ingest`.
-3. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
-4. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
-5. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
-6. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
+2. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
+3. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
+4. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
+5. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
+6. Add API/CLI/MCP contract parity tests for corpus status, corpus indexing, and generated-answer Markdown behavior.
 
 ## Verification Commands
 
@@ -100,6 +101,7 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `src/rag_ocpp/corpus/indexer.py` - indexes corpus records into chunks, embeddings, and graph links.
 - `src/rag_ocpp/storage/corpus.py` - DB adapter for source documents and corpus records.
 - `src/rag_ocpp/cli/corpus.py` - corpus preview/store CLI command.
+- `src/rag_ocpp/api/routes/corpus.py` - source-aware corpus status, preview, store, and index API.
 - `src/rag_ocpp/storage/vector.py` - vector and keyword retrieval.
 - `src/rag_ocpp/storage/graph.py` - entity, relationship, and graph fallback lookup.
 - `src/rag_ocpp/retrieval/hybrid.py` - retrieval orchestration and strategy fusion.

@@ -15,6 +15,255 @@
         "title": "Body_ingest_document_ingest_post",
         "type": "object"
       },
+      "CorpusBuildRequest": {
+        "properties": {
+          "dm_dir": {
+            "nullable": true,
+            "title": "Dm Dir",
+            "type": "string"
+          },
+          "include_dm": {
+            "default": true,
+            "title": "Include Dm",
+            "type": "boolean"
+          },
+          "include_pdf": {
+            "default": true,
+            "title": "Include Pdf",
+            "type": "boolean"
+          },
+          "include_schemas": {
+            "default": true,
+            "title": "Include Schemas",
+            "type": "boolean"
+          },
+          "schema_dir": {
+            "nullable": true,
+            "title": "Schema Dir",
+            "type": "string"
+          },
+          "spec_pdf": {
+            "nullable": true,
+            "title": "Spec Pdf",
+            "type": "string"
+          }
+        },
+        "title": "CorpusBuildRequest",
+        "type": "object"
+      },
+      "CorpusIndexRequest": {
+        "properties": {
+          "batch_size": {
+            "default": 128,
+            "maximum": 1024.0,
+            "minimum": 1.0,
+            "title": "Batch Size",
+            "type": "integer"
+          },
+          "limit": {
+            "minimum": 1.0,
+            "nullable": true,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "no_embed": {
+            "default": false,
+            "title": "No Embed",
+            "type": "boolean"
+          }
+        },
+        "title": "CorpusIndexRequest",
+        "type": "object"
+      },
+      "CorpusIndexResponse": {
+        "properties": {
+          "chunks_embedded": {
+            "default": 0,
+            "title": "Chunks Embedded",
+            "type": "integer"
+          },
+          "chunks_upserted": {
+            "default": 0,
+            "title": "Chunks Upserted",
+            "type": "integer"
+          },
+          "entities_linked": {
+            "default": 0,
+            "title": "Entities Linked",
+            "type": "integer"
+          },
+          "records_indexed": {
+            "default": 0,
+            "title": "Records Indexed",
+            "type": "integer"
+          },
+          "relationships_created": {
+            "default": 0,
+            "title": "Relationships Created",
+            "type": "integer"
+          },
+          "sources_indexed": {
+            "default": 0,
+            "title": "Sources Indexed",
+            "type": "integer"
+          }
+        },
+        "title": "CorpusIndexResponse",
+        "type": "object"
+      },
+      "CorpusPreviewResponse": {
+        "properties": {
+          "planned_sources": {
+            "title": "Planned Sources",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CorpusSourceSummary"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "total_records": {
+            "title": "Total Records",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "planned_sources",
+          "total_records"
+        ],
+        "title": "CorpusPreviewResponse",
+        "type": "object"
+      },
+      "CorpusSourceSummary": {
+        "properties": {
+          "content_hash": {
+            "nullable": true,
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "evidence_layer": {
+            "nullable": true,
+            "title": "Evidence Layer",
+            "type": "string"
+          },
+          "parser": {
+            "title": "Parser",
+            "type": "string"
+          },
+          "raw_bytes": {
+            "nullable": true,
+            "title": "Raw Bytes",
+            "type": "integer"
+          },
+          "records": {
+            "default": 0,
+            "title": "Records",
+            "type": "integer"
+          },
+          "source_path": {
+            "title": "Source Path",
+            "type": "string"
+          },
+          "source_type": {
+            "nullable": true,
+            "title": "Source Type",
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_path",
+          "parser"
+        ],
+        "title": "CorpusSourceSummary",
+        "type": "object"
+      },
+      "CorpusStatusResponse": {
+        "properties": {
+          "by_evidence_layer": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Evidence Layer",
+            "type": "object"
+          },
+          "by_source_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Source Type",
+            "type": "object"
+          },
+          "corpus_chunks": {
+            "default": 0,
+            "title": "Corpus Chunks",
+            "type": "integer"
+          },
+          "corpus_documents": {
+            "default": 0,
+            "title": "Corpus Documents",
+            "type": "integer"
+          },
+          "corpus_records": {
+            "default": 0,
+            "title": "Corpus Records",
+            "type": "integer"
+          },
+          "embedded_corpus_chunks": {
+            "default": 0,
+            "title": "Embedded Corpus Chunks",
+            "type": "integer"
+          },
+          "source_documents": {
+            "default": 0,
+            "title": "Source Documents",
+            "type": "integer"
+          }
+        },
+        "title": "CorpusStatusResponse",
+        "type": "object"
+      },
+      "CorpusStoreResponse": {
+        "properties": {
+          "planned_sources": {
+            "title": "Planned Sources",
+            "type": "integer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CorpusSourceSummary"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "stored_records": {
+            "default": 0,
+            "title": "Stored Records",
+            "type": "integer"
+          },
+          "stored_sources": {
+            "default": 0,
+            "title": "Stored Sources",
+            "type": "integer"
+          },
+          "total_records": {
+            "title": "Total Records",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "planned_sources",
+          "total_records"
+        ],
+        "title": "CorpusStoreResponse",
+        "type": "object"
+      },
       "DocumentResponse": {
         "properties": {
           "chunk_count": {
@@ -525,6 +774,169 @@
   },
   "openapi": "3.0.3",
   "paths": {
+    "/corpus/index": {
+      "post": {
+        "description": "Index stored corpus records into chunks, embeddings, and graph links.",
+        "operationId": "corpus_index_corpus_index_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorpusIndexRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusIndexResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Corpus Index",
+        "tags": [
+          "corpus"
+        ]
+      }
+    },
+    "/corpus/preview": {
+      "post": {
+        "description": "Parse selected OCPP 2.1 Ed2 sources and return record counts only.",
+        "operationId": "corpus_preview_corpus_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorpusBuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Corpus Preview",
+        "tags": [
+          "corpus"
+        ]
+      }
+    },
+    "/corpus/status": {
+      "get": {
+        "description": "Return source-aware corpus storage/index health.",
+        "operationId": "corpus_status_corpus_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Corpus Status",
+        "tags": [
+          "corpus"
+        ]
+      }
+    },
+    "/corpus/store": {
+      "post": {
+        "description": "Parse and store selected OCPP 2.1 Ed2 source-aware corpus records.",
+        "operationId": "corpus_store_corpus_store_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorpusBuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusStoreResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Corpus Store",
+        "tags": [
+          "corpus"
+        ]
+      }
+    },
     "/documents": {
       "get": {
         "operationId": "list_documents_documents_get",

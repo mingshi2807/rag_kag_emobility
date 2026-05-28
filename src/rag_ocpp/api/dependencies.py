@@ -10,6 +10,7 @@ from rag_ocpp.generation.client import DeepSeekClient
 from rag_ocpp.retrieval.hybrid import HybridRetriever
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 from rag_ocpp.storage.audit import AuditStore
+from rag_ocpp.storage.corpus import CorpusStore
 from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.vector import VectorStore
 
@@ -17,26 +18,38 @@ from rag_ocpp.storage.vector import VectorStore
 def get_pool(request: Request) -> asyncpg.Pool:
     return request.app.state.pool
 
+
 def get_config(request: Request):
     return request.app.state.config
+
 
 def get_embedding_model(request: Request) -> EmbeddingModel:
     return request.app.state.embedding
 
+
 def get_reranker(request: Request) -> CrossEncoderReranker:
     return request.app.state.reranker
+
 
 def get_vector_store(request: Request) -> VectorStore:
     return VectorStore(request.app.state.pool)
 
+
 def get_graph_store(request: Request) -> GraphStore:
     return GraphStore(request.app.state.pool)
+
 
 def get_audit_store(request: Request) -> AuditStore:
     return AuditStore(request.app.state.pool)
 
+
+def get_corpus_store(request: Request) -> CorpusStore:
+    return CorpusStore(request.app.state.pool)
+
+
 def get_llm_client(request: Request) -> DeepSeekClient:
     return DeepSeekClient(request.app.state.config.deepseek)
+
 
 def get_hybrid_retriever(request: Request) -> HybridRetriever:
     cfg = request.app.state.config.retrieval

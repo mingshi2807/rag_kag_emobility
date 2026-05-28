@@ -79,10 +79,12 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.openapi = custom_openapi  # type: ignore[method-assign]
 
     from rag_ocpp.api.routes.admin import router as admin_router
+    from rag_ocpp.api.routes.corpus import router as corpus_router
     from rag_ocpp.api.routes.ingest import router as ingest_router
     from rag_ocpp.api.routes.query import router as query_router
 
     app.include_router(ingest_router, prefix="/ingest", tags=["ingest"])
+    app.include_router(corpus_router, prefix="/corpus", tags=["corpus"])
     app.include_router(query_router, tags=["query"])
     app.include_router(admin_router, tags=["admin"])
 

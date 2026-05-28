@@ -25,6 +25,62 @@ class IngestResponse(BaseModel):
     embedding_model: str = ""
 
 
+class CorpusBuildRequest(BaseModel):
+    spec_pdf: str | None = None
+    dm_dir: str | None = None
+    schema_dir: str | None = None
+    include_pdf: bool = True
+    include_dm: bool = True
+    include_schemas: bool = True
+
+
+class CorpusSourceSummary(BaseModel):
+    source_path: str
+    parser: str
+    source_type: str | None = None
+    evidence_layer: str | None = None
+    title: str | None = None
+    content_hash: str | None = None
+    raw_bytes: int | None = None
+    records: int = 0
+
+
+class CorpusPreviewResponse(BaseModel):
+    planned_sources: int
+    total_records: int
+    sources: list[CorpusSourceSummary] = Field(default_factory=list)
+
+
+class CorpusStoreResponse(CorpusPreviewResponse):
+    stored_sources: int = 0
+    stored_records: int = 0
+
+
+class CorpusIndexRequest(BaseModel):
+    no_embed: bool = False
+    batch_size: int = Field(default=128, ge=1, le=1024)
+    limit: int | None = Field(default=None, ge=1)
+
+
+class CorpusIndexResponse(BaseModel):
+    sources_indexed: int = 0
+    records_indexed: int = 0
+    chunks_upserted: int = 0
+    chunks_embedded: int = 0
+    entities_linked: int = 0
+    relationships_created: int = 0
+
+
+class CorpusStatusResponse(BaseModel):
+    source_documents: int = 0
+    corpus_records: int = 0
+    corpus_documents: int = 0
+    corpus_chunks: int = 0
+    embedded_corpus_chunks: int = 0
+    by_source_type: dict[str, int] = Field(default_factory=dict)
+    by_evidence_layer: dict[str, int] = Field(default_factory=dict)
+
+
 class QueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     top_k: int = Field(default=5, ge=1, le=20)

@@ -72,7 +72,8 @@ This allows correlation and debugging without storing the private text itself.
 - Legacy CLI ingest writes corpus ingestion events.
 - MCP writes tool access events and retrieval events for search/evidence tools.
 - FastAPI admin mutation endpoints require `API_ADMIN_TOKEN` bearer auth and
-  write audit events for legacy ingestion and document deletion.
+  write audit events for source-aware corpus ingestion/indexing, legacy
+  ingestion, and document deletion.
 
 ## Admin Mutation Guard
 
@@ -97,8 +98,18 @@ Authorization: Bearer <admin-token>
 
 Currently protected endpoints:
 
+- `POST /corpus/preview` - source-aware OCPP corpus preview. It is guarded
+  because it reads private local source files, even though it returns only
+  counts and source summaries.
+- `POST /corpus/store` - source-aware OCPP corpus storage endpoint.
+- `POST /corpus/index` - source-aware OCPP corpus indexing endpoint.
 - `POST /ingest` - legacy direct PDF/JSON ingestion endpoint.
 - `DELETE /documents/{document_id}` - document deletion endpoint.
+
+Read-only status endpoint:
+
+- `GET /corpus/status` - returns corpus/index counts by source type and
+  evidence layer.
 
 ## Remaining Controls
 
