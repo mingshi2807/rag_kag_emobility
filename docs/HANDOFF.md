@@ -50,6 +50,7 @@ Query -> vector + keyword + graph retrieval
 - `src/rag_ocpp/api/routes/query.py` aligns FastAPI query/search with source-aware filters (`evidence_layer`, `source_type`), request `top_k`, content controls, correlation IDs, redacted errors, and source metadata in chunk responses.
 - `src/rag_ocpp/api/security.py` requires `API_ADMIN_TOKEN` bearer auth for mutating admin API endpoints. `POST /ingest` is documented as a legacy/admin direct-ingestion endpoint; `DELETE /documents/{document_id}` is also admin-protected.
 - `src/rag_ocpp/api/routes/corpus.py` adds `GET /corpus/status` plus admin-controlled `POST /corpus/preview`, `POST /corpus/store`, and `POST /corpus/index` for the source-aware OCPP 2.1 Ed2 PDF, Device Model, and JSON schema corpus path.
+- `docs/api_http_client_tests.md` documents curl and Postman smoke tests against a running uvicorn server, including health, OpenAPI, search, generation, streaming, admin guards, and safe corpus admin checks.
 - `api.json` exports the FastAPI reference as OpenAPI `3.0.3` for API consumers.
 
 ## Strict Control Rules
@@ -110,5 +111,6 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `src/rag_ocpp/mcp/server.py` - agent-facing knowledge tools.
 - `src/rag_ocpp/api/routes/query.py` - source-aware FastAPI query/search access.
 - `api.json` - exported OpenAPI 3.0.3 API reference.
+- `docs/api_http_client_tests.md` - HTTP client smoke-test procedure for running uvicorn.
 - `src/rag_ocpp/eval/answers.py` - golden generated-answer cases and Markdown scoring.
 - `src/rag_ocpp/generation/prompt.py` - standard generation prompt plus strict golden-answer prompt.

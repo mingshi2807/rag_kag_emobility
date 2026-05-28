@@ -364,6 +364,9 @@ records into chunks, embeddings, and graph links.
 source-aware corpus CLI or `/corpus/*` API flow for OCPP 2.1 Ed2 PDF, Device
 Model, and JSON schema ingestion.
 
+For curl and Postman smoke tests against a running uvicorn server, see
+[docs/api_http_client_tests.md](docs/api_http_client_tests.md).
+
 ## Private Knowledge Controls
 
 Log redaction is enabled by default:
