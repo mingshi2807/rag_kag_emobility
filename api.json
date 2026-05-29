@@ -1,828 +1,117 @@
 {
-  "components": {
-    "schemas": {
-      "Body_ingest_document_ingest_post": {
-        "properties": {
-          "file": {
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "type": "string"
-          }
-        },
-        "required": [
-          "file"
-        ],
-        "title": "Body_ingest_document_ingest_post",
-        "type": "object"
-      },
-      "CorpusBuildRequest": {
-        "properties": {
-          "dm_dir": {
-            "nullable": true,
-            "title": "Dm Dir",
-            "type": "string"
-          },
-          "include_dm": {
-            "default": true,
-            "title": "Include Dm",
-            "type": "boolean"
-          },
-          "include_pdf": {
-            "default": true,
-            "title": "Include Pdf",
-            "type": "boolean"
-          },
-          "include_schemas": {
-            "default": true,
-            "title": "Include Schemas",
-            "type": "boolean"
-          },
-          "schema_dir": {
-            "nullable": true,
-            "title": "Schema Dir",
-            "type": "string"
-          },
-          "spec_pdf": {
-            "nullable": true,
-            "title": "Spec Pdf",
-            "type": "string"
-          }
-        },
-        "title": "CorpusBuildRequest",
-        "type": "object"
-      },
-      "CorpusIndexRequest": {
-        "properties": {
-          "batch_size": {
-            "default": 128,
-            "maximum": 1024.0,
-            "minimum": 1.0,
-            "title": "Batch Size",
-            "type": "integer"
-          },
-          "limit": {
-            "minimum": 1.0,
-            "nullable": true,
-            "title": "Limit",
-            "type": "integer"
-          },
-          "no_embed": {
-            "default": false,
-            "title": "No Embed",
-            "type": "boolean"
-          }
-        },
-        "title": "CorpusIndexRequest",
-        "type": "object"
-      },
-      "CorpusIndexResponse": {
-        "properties": {
-          "chunks_embedded": {
-            "default": 0,
-            "title": "Chunks Embedded",
-            "type": "integer"
-          },
-          "chunks_upserted": {
-            "default": 0,
-            "title": "Chunks Upserted",
-            "type": "integer"
-          },
-          "entities_linked": {
-            "default": 0,
-            "title": "Entities Linked",
-            "type": "integer"
-          },
-          "records_indexed": {
-            "default": 0,
-            "title": "Records Indexed",
-            "type": "integer"
-          },
-          "relationships_created": {
-            "default": 0,
-            "title": "Relationships Created",
-            "type": "integer"
-          },
-          "sources_indexed": {
-            "default": 0,
-            "title": "Sources Indexed",
-            "type": "integer"
-          }
-        },
-        "title": "CorpusIndexResponse",
-        "type": "object"
-      },
-      "CorpusPreviewResponse": {
-        "properties": {
-          "planned_sources": {
-            "title": "Planned Sources",
-            "type": "integer"
-          },
-          "sources": {
-            "items": {
-              "$ref": "#/components/schemas/CorpusSourceSummary"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "total_records": {
-            "title": "Total Records",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "planned_sources",
-          "total_records"
-        ],
-        "title": "CorpusPreviewResponse",
-        "type": "object"
-      },
-      "CorpusSourceSummary": {
-        "properties": {
-          "content_hash": {
-            "nullable": true,
-            "title": "Content Hash",
-            "type": "string"
-          },
-          "evidence_layer": {
-            "nullable": true,
-            "title": "Evidence Layer",
-            "type": "string"
-          },
-          "parser": {
-            "title": "Parser",
-            "type": "string"
-          },
-          "raw_bytes": {
-            "nullable": true,
-            "title": "Raw Bytes",
-            "type": "integer"
-          },
-          "records": {
-            "default": 0,
-            "title": "Records",
-            "type": "integer"
-          },
-          "source_path": {
-            "title": "Source Path",
-            "type": "string"
-          },
-          "source_type": {
-            "nullable": true,
-            "title": "Source Type",
-            "type": "string"
-          },
-          "title": {
-            "nullable": true,
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "source_path",
-          "parser"
-        ],
-        "title": "CorpusSourceSummary",
-        "type": "object"
-      },
-      "CorpusStatusResponse": {
-        "properties": {
-          "by_evidence_layer": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "By Evidence Layer",
-            "type": "object"
-          },
-          "by_source_type": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "By Source Type",
-            "type": "object"
-          },
-          "corpus_chunks": {
-            "default": 0,
-            "title": "Corpus Chunks",
-            "type": "integer"
-          },
-          "corpus_documents": {
-            "default": 0,
-            "title": "Corpus Documents",
-            "type": "integer"
-          },
-          "corpus_records": {
-            "default": 0,
-            "title": "Corpus Records",
-            "type": "integer"
-          },
-          "embedded_corpus_chunks": {
-            "default": 0,
-            "title": "Embedded Corpus Chunks",
-            "type": "integer"
-          },
-          "source_documents": {
-            "default": 0,
-            "title": "Source Documents",
-            "type": "integer"
-          }
-        },
-        "title": "CorpusStatusResponse",
-        "type": "object"
-      },
-      "CorpusStoreResponse": {
-        "properties": {
-          "planned_sources": {
-            "title": "Planned Sources",
-            "type": "integer"
-          },
-          "sources": {
-            "items": {
-              "$ref": "#/components/schemas/CorpusSourceSummary"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "stored_records": {
-            "default": 0,
-            "title": "Stored Records",
-            "type": "integer"
-          },
-          "stored_sources": {
-            "default": 0,
-            "title": "Stored Sources",
-            "type": "integer"
-          },
-          "total_records": {
-            "title": "Total Records",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "planned_sources",
-          "total_records"
-        ],
-        "title": "CorpusStoreResponse",
-        "type": "object"
-      },
-      "DocumentResponse": {
-        "properties": {
-          "chunk_count": {
-            "default": 0,
-            "title": "Chunk Count",
-            "type": "integer"
-          },
-          "doc_type": {
-            "title": "Doc Type",
-            "type": "string"
-          },
-          "entity_count": {
-            "default": 0,
-            "title": "Entity Count",
-            "type": "integer"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "ingested_at": {
-            "format": "date-time",
-            "nullable": true,
-            "title": "Ingested At",
-            "type": "string"
-          },
-          "page_count": {
-            "nullable": true,
-            "title": "Page Count",
-            "type": "integer"
-          },
-          "part": {
-            "nullable": true,
-            "title": "Part",
-            "type": "string"
-          },
-          "protocol_id": {
-            "title": "Protocol Id",
-            "type": "integer"
-          },
-          "source_path": {
-            "title": "Source Path",
-            "type": "string"
-          },
-          "title": {
-            "nullable": true,
-            "title": "Title",
-            "type": "string"
-          },
-          "version": {
-            "nullable": true,
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "protocol_id",
-          "source_path",
-          "doc_type"
-        ],
-        "title": "DocumentResponse",
-        "type": "object"
-      },
-      "EntityResponse": {
-        "properties": {
-          "aliases": {
-            "items": {
-              "type": "string"
-            },
-            "nullable": true,
-            "title": "Aliases",
-            "type": "array"
-          },
-          "chunk_count": {
-            "default": 0,
-            "title": "Chunk Count",
-            "type": "integer"
-          },
-          "description": {
-            "nullable": true,
-            "title": "Description",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "relationships": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Relationships",
-            "type": "array"
-          },
-          "type_name": {
-            "default": "",
-            "title": "Type Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "EntityResponse",
-        "type": "object"
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
-            "type": "array"
-          }
-        },
-        "title": "HTTPValidationError",
-        "type": "object"
-      },
-      "HealthResponse": {
-        "properties": {
-          "database": {
-            "default": "disconnected",
-            "title": "Database",
-            "type": "string"
-          },
-          "embedding_loaded": {
-            "default": false,
-            "title": "Embedding Loaded",
-            "type": "boolean"
-          },
-          "embedding_model": {
-            "default": "",
-            "title": "Embedding Model",
-            "type": "string"
-          },
-          "reranker_loaded": {
-            "default": false,
-            "title": "Reranker Loaded",
-            "type": "boolean"
-          },
-          "status": {
-            "default": "ok",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "title": "HealthResponse",
-        "type": "object"
-      },
-      "IngestResponse": {
-        "properties": {
-          "chunks_created": {
-            "default": 0,
-            "title": "Chunks Created",
-            "type": "integer"
-          },
-          "doc_type": {
-            "title": "Doc Type",
-            "type": "string"
-          },
-          "document_id": {
-            "format": "uuid",
-            "title": "Document Id",
-            "type": "string"
-          },
-          "embedding_model": {
-            "default": "",
-            "title": "Embedding Model",
-            "type": "string"
-          },
-          "entities_extracted": {
-            "default": 0,
-            "title": "Entities Extracted",
-            "type": "integer"
-          },
-          "page_count": {
-            "default": 0,
-            "title": "Page Count",
-            "type": "integer"
-          },
-          "part": {
-            "nullable": true,
-            "title": "Part",
-            "type": "string"
-          },
-          "protocol": {
-            "title": "Protocol",
-            "type": "string"
-          },
-          "source_path": {
-            "title": "Source Path",
-            "type": "string"
-          },
-          "version": {
-            "nullable": true,
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "document_id",
-          "source_path",
-          "doc_type",
-          "protocol"
-        ],
-        "title": "IngestResponse",
-        "type": "object"
-      },
-      "QueryRequest": {
-        "properties": {
-          "doc_type": {
-            "nullable": true,
-            "title": "Doc Type",
-            "type": "string"
-          },
-          "evidence_layer": {
-            "enum": [
-              "spec",
-              "device_model",
-              "schema"
-            ],
-            "nullable": true,
-            "title": "Evidence Layer",
-            "type": "string"
-          },
-          "include_answer": {
-            "default": true,
-            "title": "Include Answer",
-            "type": "boolean"
-          },
-          "include_content": {
-            "default": true,
-            "title": "Include Content",
-            "type": "boolean"
-          },
-          "include_query": {
-            "default": true,
-            "title": "Include Query",
-            "type": "boolean"
-          },
-          "max_chars": {
-            "default": 500,
-            "maximum": 6000.0,
-            "minimum": 0.0,
-            "title": "Max Chars",
-            "type": "integer"
-          },
-          "query": {
-            "maxLength": 2000,
-            "minLength": 1,
-            "title": "Query",
-            "type": "string"
-          },
-          "source_type": {
-            "enum": [
-              "spec_pdf",
-              "device_model_table",
-              "json_schema",
-              "appendix_csv"
-            ],
-            "nullable": true,
-            "title": "Source Type",
-            "type": "string"
-          },
-          "stream": {
-            "default": false,
-            "title": "Stream",
-            "type": "boolean"
-          },
-          "top_k": {
-            "default": 5,
-            "maximum": 20.0,
-            "minimum": 1.0,
-            "title": "Top K",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "query"
-        ],
-        "title": "QueryRequest",
-        "type": "object"
-      },
-      "QueryResponse": {
-        "properties": {
-          "answer": {
-            "nullable": true,
-            "title": "Answer",
-            "type": "string"
-          },
-          "correlation_id": {
-            "title": "Correlation Id",
-            "type": "string"
-          },
-          "latency_ms": {
-            "default": 0,
-            "title": "Latency Ms",
-            "type": "integer"
-          },
-          "query": {
-            "nullable": true,
-            "title": "Query",
-            "type": "string"
-          },
-          "query_ref": {
-            "additionalProperties": true,
-            "title": "Query Ref",
-            "type": "object"
-          },
-          "sources": {
-            "items": {
-              "$ref": "#/components/schemas/ScoredChunkResponse"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "strategy_breakdown": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "Strategy Breakdown",
-            "type": "object"
-          }
-        },
-        "required": [
-          "correlation_id",
-          "query_ref",
-          "sources"
-        ],
-        "title": "QueryResponse",
-        "type": "object"
-      },
-      "ScoredChunkResponse": {
-        "properties": {
-          "chunk_id": {
-            "format": "uuid",
-            "title": "Chunk Id",
-            "type": "string"
-          },
-          "content": {
-            "nullable": true,
-            "title": "Content",
-            "type": "string"
-          },
-          "content_hash": {
-            "nullable": true,
-            "title": "Content Hash",
-            "type": "string"
-          },
-          "document_id": {
-            "format": "uuid",
-            "title": "Document Id",
-            "type": "string"
-          },
-          "evidence_layer": {
-            "nullable": true,
-            "title": "Evidence Layer",
-            "type": "string"
-          },
-          "page_end": {
-            "nullable": true,
-            "title": "Page End",
-            "type": "integer"
-          },
-          "page_start": {
-            "nullable": true,
-            "title": "Page Start",
-            "type": "integer"
-          },
-          "score": {
-            "title": "Score",
-            "type": "number"
-          },
-          "section_title": {
-            "nullable": true,
-            "title": "Section Title",
-            "type": "string"
-          },
-          "source_path": {
-            "nullable": true,
-            "title": "Source Path",
-            "type": "string"
-          },
-          "source_type": {
-            "nullable": true,
-            "title": "Source Type",
-            "type": "string"
-          },
-          "strategy": {
-            "title": "Strategy",
-            "type": "string"
-          }
-        },
-        "required": [
-          "chunk_id",
-          "document_id",
-          "score",
-          "strategy"
-        ],
-        "title": "ScoredChunkResponse",
-        "type": "object"
-      },
-      "SearchResponse": {
-        "properties": {
-          "correlation_id": {
-            "title": "Correlation Id",
-            "type": "string"
-          },
-          "latency_ms": {
-            "default": 0,
-            "title": "Latency Ms",
-            "type": "integer"
-          },
-          "query": {
-            "nullable": true,
-            "title": "Query",
-            "type": "string"
-          },
-          "query_ref": {
-            "additionalProperties": true,
-            "title": "Query Ref",
-            "type": "object"
-          },
-          "results": {
-            "items": {
-              "$ref": "#/components/schemas/ScoredChunkResponse"
-            },
-            "title": "Results",
-            "type": "array"
-          },
-          "strategy_breakdown": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "Strategy Breakdown",
-            "type": "object"
-          }
-        },
-        "required": [
-          "correlation_id",
-          "query_ref",
-          "results"
-        ],
-        "title": "SearchResponse",
-        "type": "object"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
-      }
-    },
-    "securitySchemes": {
-      "HTTPBearer": {
-        "scheme": "bearer",
-        "type": "http"
-      }
-    }
-  },
+  "openapi": "3.0.3",
   "info": {
     "title": "RAG/KAG OCPP 2.1",
     "version": "0.3.0"
   },
-  "openapi": "3.0.3",
   "paths": {
-    "/corpus/index": {
+    "/ingest": {
       "post": {
-        "description": "Index stored corpus records into chunks, embeddings, and graph links.",
-        "operationId": "corpus_index_corpus_index_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CorpusIndexRequest"
-              }
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Legacy admin document ingestion",
+        "description": "Legacy mutation endpoint for direct PDF/JSON ingestion. Requires API_ADMIN_TOKEN bearer auth. Prefer the source-aware corpus CLI flow for OCPP 2.1 Ed2 PDF, Device Model, and JSON schema ingestion.",
+        "operationId": "ingest_document_ingest_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doc_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "spec",
+              "title": "Doc Type"
             }
           },
-          "required": true
+          {
+            "name": "protocol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ocpp21",
+              "title": "Protocol"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "2.1",
+              "title": "Version"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_document_ingest_post"
+              }
+            }
+          }
         },
         "responses": {
           "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CorpusIndexResponse"
+                  "$ref": "#/components/schemas/IngestResponse"
                 }
               }
-            },
-            "description": "Successful Response"
+            }
           },
           "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Validation Error"
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Corpus Index",
+        }
+      }
+    },
+    "/corpus/status": {
+      "get": {
         "tags": [
           "corpus"
-        ]
+        ],
+        "summary": "Corpus Status",
+        "description": "Return source-aware corpus storage/index health.",
+        "operationId": "corpus_status_corpus_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusStatusResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/corpus/preview": {
       "post": {
+        "tags": [
+          "corpus"
+        ],
+        "summary": "Corpus Preview",
         "description": "Parse selected OCPP 2.1 Ed2 sources and return record counts only.",
         "operationId": "corpus_preview_corpus_preview_post",
         "requestBody": {
@@ -837,61 +126,39 @@
         },
         "responses": {
           "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CorpusPreviewResponse"
                 }
               }
-            },
-            "description": "Successful Response"
+            }
           },
           "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Validation Error"
+            }
           }
         },
         "security": [
           {
             "HTTPBearer": []
           }
-        ],
-        "summary": "Corpus Preview",
-        "tags": [
-          "corpus"
-        ]
-      }
-    },
-    "/corpus/status": {
-      "get": {
-        "description": "Return source-aware corpus storage/index health.",
-        "operationId": "corpus_status_corpus_status_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CorpusStatusResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Corpus Status",
-        "tags": [
-          "corpus"
         ]
       }
     },
     "/corpus/store": {
       "post": {
+        "tags": [
+          "corpus"
+        ],
+        "summary": "Corpus Store",
         "description": "Parse and store selected OCPP 2.1 Ed2 source-aware corpus records.",
         "operationId": "corpus_store_corpus_store_post",
         "requestBody": {
@@ -906,233 +173,46 @@
         },
         "responses": {
           "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CorpusStoreResponse"
                 }
               }
-            },
-            "description": "Successful Response"
+            }
           },
           "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Validation Error"
+            }
           }
         },
         "security": [
           {
             "HTTPBearer": []
           }
-        ],
-        "summary": "Corpus Store",
+        ]
+      }
+    },
+    "/corpus/index": {
+      "post": {
         "tags": [
           "corpus"
-        ]
-      }
-    },
-    "/documents": {
-      "get": {
-        "operationId": "list_documents_documents_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "protocol",
-            "required": false,
-            "schema": {
-              "nullable": true,
-              "title": "Protocol",
-              "type": "string"
-            }
-          }
         ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DocumentResponse"
-                  },
-                  "title": "Response List Documents Documents Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Documents",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/documents/{document_id}": {
-      "delete": {
-        "operationId": "delete_document_documents__document_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "document_id",
-            "required": true,
-            "schema": {
-              "title": "Document Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Delete Document",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/entities/{name}": {
-      "get": {
-        "operationId": "get_entity_entities__name__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "title": "Name",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EntityResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Entity",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/health": {
-      "get": {
-        "operationId": "health_health_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Health",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/ingest": {
-      "post": {
-        "description": "Legacy mutation endpoint for direct PDF/JSON ingestion. Requires API_ADMIN_TOKEN bearer auth. Prefer the source-aware corpus CLI flow for OCPP 2.1 Ed2 PDF, Device Model, and JSON schema ingestion.",
-        "operationId": "ingest_document_ingest_post",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "doc_type",
-            "required": false,
-            "schema": {
-              "default": "spec",
-              "title": "Doc Type",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "protocol",
-            "required": false,
-            "schema": {
-              "default": "ocpp21",
-              "title": "Protocol",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "version",
-            "required": false,
-            "schema": {
-              "default": "2.1",
-              "title": "Version",
-              "type": "string"
-            }
-          }
-        ],
+        "summary": "Corpus Index",
+        "description": "Index stored corpus records into chunks, embeddings, and graph links.",
+        "operationId": "corpus_index_corpus_index_post",
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_ingest_document_ingest_post"
+                "$ref": "#/components/schemas/CorpusIndexRequest"
               }
             }
           },
@@ -1140,39 +220,39 @@
         },
         "responses": {
           "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IngestResponse"
+                  "$ref": "#/components/schemas/CorpusIndexResponse"
                 }
               }
-            },
-            "description": "Successful Response"
+            }
           },
           "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Validation Error"
+            }
           }
         },
         "security": [
           {
             "HTTPBearer": []
           }
-        ],
-        "summary": "Legacy admin document ingestion",
-        "tags": [
-          "ingest"
         ]
       }
     },
     "/query": {
       "post": {
+        "tags": [
+          "query"
+        ],
+        "summary": "Query",
         "operationId": "query_query_post",
         "requestBody": {
           "content": {
@@ -1186,34 +266,34 @@
         },
         "responses": {
           "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/QueryResponse"
                 }
               }
-            },
-            "description": "Successful Response"
+            }
           },
           "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Validation Error"
+            }
           }
-        },
-        "summary": "Query",
-        "tags": [
-          "query"
-        ]
+        }
       }
     },
     "/query/stream": {
       "post": {
+        "tags": [
+          "query"
+        ],
+        "summary": "Query Stream",
         "operationId": "query_stream_query_stream_post",
         "requestBody": {
           "content": {
@@ -1227,148 +307,1076 @@
         },
         "responses": {
           "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
               }
-            },
-            "description": "Successful Response"
+            }
           },
           "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Validation Error"
+            }
           }
-        },
-        "summary": "Query Stream",
-        "tags": [
-          "query"
-        ]
+        }
       }
     },
     "/search": {
       "get": {
+        "tags": [
+          "query"
+        ],
+        "summary": "Search",
         "operationId": "search_search_get",
         "parameters": [
           {
-            "in": "query",
             "name": "q",
+            "in": "query",
             "required": true,
             "schema": {
-              "maxLength": 2000,
+              "type": "string",
               "minLength": 1,
-              "title": "Q",
-              "type": "string"
+              "maxLength": 2000,
+              "title": "Q"
             }
           },
           {
-            "in": "query",
             "name": "top_k",
+            "in": "query",
             "required": false,
             "schema": {
-              "default": 8,
+              "type": "integer",
               "maximum": 20,
               "minimum": 1,
-              "title": "Top K",
-              "type": "integer"
+              "default": 8,
+              "title": "Top K"
             }
           },
           {
-            "in": "query",
             "name": "doc_type",
+            "in": "query",
             "required": false,
             "schema": {
-              "nullable": true,
               "title": "Doc Type",
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
-            "in": "query",
             "name": "evidence_layer",
+            "in": "query",
             "required": false,
             "schema": {
-              "nullable": true,
-              "pattern": "^(spec|device_model|schema)$",
               "title": "Evidence Layer",
-              "type": "string"
+              "type": "string",
+              "pattern": "^(spec|device_model|schema)$",
+              "nullable": true
             }
           },
           {
-            "in": "query",
             "name": "source_type",
+            "in": "query",
             "required": false,
             "schema": {
-              "nullable": true,
-              "pattern": "^(spec_pdf|device_model_table|json_schema|appendix_csv)$",
               "title": "Source Type",
-              "type": "string"
+              "type": "string",
+              "pattern": "^(spec_pdf|device_model_table|json_schema|appendix_csv)$",
+              "nullable": true
             }
           },
           {
-            "in": "query",
             "name": "max_chars",
+            "in": "query",
             "required": false,
             "schema": {
-              "default": 300,
+              "type": "integer",
               "maximum": 6000,
               "minimum": 0,
-              "title": "Max Chars",
-              "type": "integer"
+              "default": 300,
+              "title": "Max Chars"
             }
           },
           {
-            "in": "query",
             "name": "include_content",
+            "in": "query",
             "required": false,
             "schema": {
+              "type": "boolean",
               "default": true,
-              "title": "Include Content",
-              "type": "boolean"
+              "title": "Include Content"
             }
           },
           {
-            "in": "query",
             "name": "include_query",
+            "in": "query",
             "required": false,
             "schema": {
+              "type": "boolean",
               "default": true,
-              "title": "Include Query",
-              "type": "boolean"
+              "title": "Include Query"
             }
           }
         ],
         "responses": {
           "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SearchResponse"
                 }
               }
-            },
-            "description": "Successful Response"
+            }
           },
           "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Validation Error"
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Documents",
+        "operationId": "list_documents_documents_get",
+        "parameters": [
+          {
+            "name": "protocol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "title": "Protocol",
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentResponse"
+                  },
+                  "title": "Response List Documents Documents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}": {
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Delete Document",
+        "operationId": "delete_document_documents__document_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entities/{name}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Entity",
+        "operationId": "get_entity_entities__name__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_ingest_document_ingest_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
           }
         },
-        "summary": "Search",
-        "tags": [
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_ingest_document_ingest_post"
+      },
+      "CorpusBuildRequest": {
+        "properties": {
+          "spec_pdf": {
+            "title": "Spec Pdf",
+            "type": "string",
+            "nullable": true
+          },
+          "dm_dir": {
+            "title": "Dm Dir",
+            "type": "string",
+            "nullable": true
+          },
+          "schema_dir": {
+            "title": "Schema Dir",
+            "type": "string",
+            "nullable": true
+          },
+          "include_pdf": {
+            "type": "boolean",
+            "title": "Include Pdf",
+            "default": true
+          },
+          "include_dm": {
+            "type": "boolean",
+            "title": "Include Dm",
+            "default": true
+          },
+          "include_schemas": {
+            "type": "boolean",
+            "title": "Include Schemas",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "CorpusBuildRequest"
+      },
+      "CorpusIndexRequest": {
+        "properties": {
+          "no_embed": {
+            "type": "boolean",
+            "title": "No Embed",
+            "default": false
+          },
+          "batch_size": {
+            "type": "integer",
+            "maximum": 1024.0,
+            "minimum": 1.0,
+            "title": "Batch Size",
+            "default": 128
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer",
+            "minimum": 1.0,
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "title": "CorpusIndexRequest"
+      },
+      "CorpusIndexResponse": {
+        "properties": {
+          "sources_indexed": {
+            "type": "integer",
+            "title": "Sources Indexed",
+            "default": 0
+          },
+          "records_indexed": {
+            "type": "integer",
+            "title": "Records Indexed",
+            "default": 0
+          },
+          "chunks_upserted": {
+            "type": "integer",
+            "title": "Chunks Upserted",
+            "default": 0
+          },
+          "chunks_embedded": {
+            "type": "integer",
+            "title": "Chunks Embedded",
+            "default": 0
+          },
+          "entities_linked": {
+            "type": "integer",
+            "title": "Entities Linked",
+            "default": 0
+          },
+          "relationships_created": {
+            "type": "integer",
+            "title": "Relationships Created",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "CorpusIndexResponse"
+      },
+      "CorpusPreviewResponse": {
+        "properties": {
+          "planned_sources": {
+            "type": "integer",
+            "title": "Planned Sources"
+          },
+          "total_records": {
+            "type": "integer",
+            "title": "Total Records"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CorpusSourceSummary"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "planned_sources",
+          "total_records"
+        ],
+        "title": "CorpusPreviewResponse"
+      },
+      "CorpusSourceSummary": {
+        "properties": {
+          "source_path": {
+            "type": "string",
+            "title": "Source Path"
+          },
+          "parser": {
+            "type": "string",
+            "title": "Parser"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string",
+            "nullable": true
+          },
+          "evidence_layer": {
+            "title": "Evidence Layer",
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "title": "Title",
+            "type": "string",
+            "nullable": true
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string",
+            "nullable": true
+          },
+          "raw_bytes": {
+            "title": "Raw Bytes",
+            "type": "integer",
+            "nullable": true
+          },
+          "records": {
+            "type": "integer",
+            "title": "Records",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_path",
+          "parser"
+        ],
+        "title": "CorpusSourceSummary"
+      },
+      "CorpusStatusResponse": {
+        "properties": {
+          "source_documents": {
+            "type": "integer",
+            "title": "Source Documents",
+            "default": 0
+          },
+          "corpus_records": {
+            "type": "integer",
+            "title": "Corpus Records",
+            "default": 0
+          },
+          "corpus_documents": {
+            "type": "integer",
+            "title": "Corpus Documents",
+            "default": 0
+          },
+          "corpus_chunks": {
+            "type": "integer",
+            "title": "Corpus Chunks",
+            "default": 0
+          },
+          "embedded_corpus_chunks": {
+            "type": "integer",
+            "title": "Embedded Corpus Chunks",
+            "default": 0
+          },
+          "by_source_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Source Type"
+          },
+          "by_evidence_layer": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Evidence Layer"
+          }
+        },
+        "type": "object",
+        "title": "CorpusStatusResponse"
+      },
+      "CorpusStoreResponse": {
+        "properties": {
+          "planned_sources": {
+            "type": "integer",
+            "title": "Planned Sources"
+          },
+          "total_records": {
+            "type": "integer",
+            "title": "Total Records"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CorpusSourceSummary"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "stored_sources": {
+            "type": "integer",
+            "title": "Stored Sources",
+            "default": 0
+          },
+          "stored_records": {
+            "type": "integer",
+            "title": "Stored Records",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "planned_sources",
+          "total_records"
+        ],
+        "title": "CorpusStoreResponse"
+      },
+      "DocumentResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "protocol_id": {
+            "type": "integer",
+            "title": "Protocol Id"
+          },
+          "source_path": {
+            "type": "string",
+            "title": "Source Path"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "title": "Version",
+            "type": "string",
+            "nullable": true
+          },
+          "part": {
+            "title": "Part",
+            "type": "string",
+            "nullable": true
+          },
+          "page_count": {
+            "title": "Page Count",
+            "type": "integer",
+            "nullable": true
+          },
+          "ingested_at": {
+            "title": "Ingested At",
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "chunk_count": {
+            "type": "integer",
+            "title": "Chunk Count",
+            "default": 0
+          },
+          "entity_count": {
+            "type": "integer",
+            "title": "Entity Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "protocol_id",
+          "source_path",
+          "doc_type"
+        ],
+        "title": "DocumentResponse"
+      },
+      "EntityResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type_name": {
+            "type": "string",
+            "title": "Type Name",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string",
+            "nullable": true
+          },
+          "aliases": {
+            "title": "Aliases",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "nullable": true
+          },
+          "chunk_count": {
+            "type": "integer",
+            "title": "Chunk Count",
+            "default": 0
+          },
+          "relationships": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Relationships"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "EntityResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database",
+            "default": "disconnected"
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model",
+            "default": ""
+          },
+          "embedding_loaded": {
+            "type": "boolean",
+            "title": "Embedding Loaded",
+            "default": false
+          },
+          "reranker_loaded": {
+            "type": "boolean",
+            "title": "Reranker Loaded",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "HealthResponse"
+      },
+      "IngestResponse": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "source_path": {
+            "type": "string",
+            "title": "Source Path"
+          },
+          "doc_type": {
+            "type": "string",
+            "title": "Doc Type"
+          },
+          "protocol": {
+            "type": "string",
+            "title": "Protocol"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string",
+            "nullable": true
+          },
+          "part": {
+            "title": "Part",
+            "type": "string",
+            "nullable": true
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count",
+            "default": 0
+          },
+          "chunks_created": {
+            "type": "integer",
+            "title": "Chunks Created",
+            "default": 0
+          },
+          "entities_extracted": {
+            "type": "integer",
+            "title": "Entities Extracted",
+            "default": 0
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "source_path",
+          "doc_type",
+          "protocol"
+        ],
+        "title": "IngestResponse"
+      },
+      "QueryRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "default": 5
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "default": false
+          },
+          "doc_type": {
+            "title": "Doc Type",
+            "type": "string",
+            "nullable": true
+          },
+          "evidence_layer": {
+            "title": "Evidence Layer",
+            "type": "string",
+            "enum": [
+              "spec",
+              "device_model",
+              "schema"
+            ],
+            "nullable": true
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string",
+            "enum": [
+              "spec_pdf",
+              "device_model_table",
+              "json_schema",
+              "appendix_csv"
+            ],
+            "nullable": true
+          },
+          "max_chars": {
+            "type": "integer",
+            "maximum": 6000.0,
+            "minimum": 0.0,
+            "title": "Max Chars",
+            "default": 500
+          },
+          "include_content": {
+            "type": "boolean",
+            "title": "Include Content",
+            "default": true
+          },
+          "include_answer": {
+            "type": "boolean",
+            "title": "Include Answer",
+            "default": true
+          },
+          "include_query": {
+            "type": "boolean",
+            "title": "Include Query",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
           "query"
-        ]
+        ],
+        "title": "QueryRequest"
+      },
+      "QueryResponse": {
+        "properties": {
+          "correlation_id": {
+            "type": "string",
+            "title": "Correlation Id"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string",
+            "nullable": true
+          },
+          "query_ref": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Query Ref"
+          },
+          "answer": {
+            "title": "Answer",
+            "type": "string",
+            "nullable": true
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ScoredChunkResponse"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "strategy_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Strategy Breakdown"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "correlation_id",
+          "query_ref",
+          "sources"
+        ],
+        "title": "QueryResponse"
+      },
+      "ScoredChunkResponse": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "strategy": {
+            "type": "string",
+            "title": "Strategy"
+          },
+          "section_title": {
+            "title": "Section Title",
+            "type": "string",
+            "nullable": true
+          },
+          "page_start": {
+            "title": "Page Start",
+            "type": "integer",
+            "nullable": true
+          },
+          "page_end": {
+            "title": "Page End",
+            "type": "integer",
+            "nullable": true
+          },
+          "evidence_layer": {
+            "title": "Evidence Layer",
+            "type": "string",
+            "nullable": true
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string",
+            "nullable": true
+          },
+          "source_path": {
+            "title": "Source Path",
+            "type": "string",
+            "nullable": true
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string",
+            "nullable": true
+          },
+          "semantic_links": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Semantic Links"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "document_id",
+          "score",
+          "strategy"
+        ],
+        "title": "ScoredChunkResponse"
+      },
+      "SearchResponse": {
+        "properties": {
+          "correlation_id": {
+            "type": "string",
+            "title": "Correlation Id"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string",
+            "nullable": true
+          },
+          "query_ref": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Query Ref"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ScoredChunkResponse"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "strategy_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Strategy Breakdown"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "correlation_id",
+          "query_ref",
+          "results"
+        ],
+        "title": "SearchResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

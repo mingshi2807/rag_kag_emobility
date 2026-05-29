@@ -9,12 +9,14 @@ from fastapi.testclient import TestClient
 
 from rag_ocpp.api.dependencies import (
     get_audit_store,
+    get_graph_store,
     get_hybrid_retriever,
     get_llm_client,
 )
 from rag_ocpp.api.routes.query import router
 from rag_ocpp.retrieval.hybrid import RetrievalResult
 from rag_ocpp.retrieval.searchers import ScoredChunk
+from rag_ocpp.storage.graph import ChunkSemanticLink
 
 CHUNK_ID = UUID("11111111-1111-1111-1111-111111111111")
 DOCUMENT_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -61,6 +63,31 @@ class FakeAudit:
         return UUID("33333333-3333-3333-3333-333333333333")
 
 
+class FakeGraph:
+    async def get_semantic_links_for_chunks(self, chunk_ids, *, max_links_per_chunk=5):
+        return {
+            chunk_id: [
+                ChunkSemanticLink(
+                    chunk_id=chunk_id,
+                    entity_name="ChargingStation",
+                    entity_type="component",
+                    rel_type="component_has_variable",
+                    direction="outgoing",
+                    related_entity_name="HeartbeatInterval",
+                    related_entity_type="variable",
+                    properties={
+                        "ontology_version": "ocpp21-ed2-v1",
+                        "mapping_rule": "dm_component_variable",
+                        "evidence_layer": "device_model",
+                        "source_type": "device_model_table",
+                        "confidence": 0.98,
+                    },
+                )
+            ]
+            for chunk_id in chunk_ids
+        }
+
+
 def test_query_honors_top_k_filters_and_source_metadata():
     retriever = FakeRetriever()
     audit = FakeAudit()
@@ -88,6 +115,9 @@ def test_query_honors_top_k_filters_and_source_metadata():
     assert body["sources"][0]["evidence_layer"] == "schema"
     assert body["sources"][0]["source_type"] == "json_schema"
     assert body["sources"][0]["source_path"] == "data/json/test.schema.json"
+    assert body["sources"][0]["semantic_links"][0]["rel_type"] == "component_has_variable"
+    assert body["sources"][0]["semantic_links"][0]["ontology_version"] == "ocpp21-ed2-v1"
+    assert body["sources"][0]["semantic_links"][0]["mapping_rule"] == "dm_component_variable"
 
     call = retriever.retrieve_calls[0]
     assert call["top_k"] == 3
@@ -122,6 +152,9 @@ def test_search_honors_source_filters_and_can_hide_content():
     assert len(body["results"]) == 2
     assert body["results"][0]["content"] is None
     assert body["results"][0]["content_hash"] == "hash-1"
+    assert body["results"][0]["semantic_links"][0]["related_entity_name"] == (
+        "HeartbeatInterval"
+    )
 
     call = retriever.search_calls[0]
     assert call["top_k"] == 2
@@ -159,6 +192,7 @@ def _client(
     app.dependency_overrides[get_hybrid_retriever] = lambda: retriever or FakeRetriever()
     app.dependency_overrides[get_llm_client] = lambda: llm or FakeLlm()
     app.dependency_overrides[get_audit_store] = lambda: audit or FakeAudit()
+    app.dependency_overrides[get_graph_store] = lambda: FakeGraph()
     return TestClient(app)
 
 

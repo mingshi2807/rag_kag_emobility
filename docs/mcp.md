@@ -32,7 +32,8 @@ Use this for direct evidence search.
 | `max_chars` | integer | no (default 1200, max 6000) |
 
 Returns Markdown chunks with chunk ID, document ID, score, strategy, evidence
-layer, source type, source path, and clipped content.
+layer, source type, source path, clipped content, and ontology-backed semantic
+links when graph provenance is available.
 
 ### `get_ocpp_evidence_pack`
 
@@ -46,6 +47,18 @@ Retrieves a grouped evidence pack for a coding agent.
 
 Groups results by evidence layer: `spec`, `device_model`, `schema`, `unknown`.
 Use this before asking an agent to make implementation decisions.
+
+When available, each chunk includes a `Semantic Links` section. Example:
+
+```markdown
+### Semantic Links
+
+- `component_has_variable` outgoing `ChargingStation` (component) ↔ `HeartbeatInterval` (variable) [ontology `ocpp21-ed2-v1`, rule `dm_component_variable`, confidence `0.98`]
+```
+
+Use these links to justify cross-layer reasoning, for example why a Device Model
+component/variable is connected to a retrieved schema or spec entity. The links
+are provenance metadata only; they do not replace the cited chunk content.
 
 ### `build_ocpp_implementation_brief`
 
@@ -105,7 +118,8 @@ Entity details by name with relationships and linked chunks.
 |-------|------|----------|
 | `name` | string | yes |
 
-Returns description, aliases, relationships (incoming/outgoing), linked chunk count.
+Returns description, aliases, relationships (incoming/outgoing), linked chunk
+count, and ontology provenance on relationships when present.
 
 ### `list_ocpp_documents`
 

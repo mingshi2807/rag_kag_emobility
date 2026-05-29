@@ -111,6 +111,38 @@ After ontology relinking, every existing graph relationship now records:
 - `stable_key`
 - `corpus_record_id`
 
+## Evidence-Pack Explainability Benchmark
+
+The next concrete improvement exposes ontology provenance at retrieval output
+time instead of keeping it only in database relationship properties.
+
+Validation:
+
+```bash
+.venv/bin/pytest tests/test_api/test_query_routes.py tests/test_api/test_openapi_schema.py tests/test_ontology/test_store.py tests/test_mcp/test_server_formatting.py -q
+```
+
+Result:
+
+- `10 passed`
+- FastAPI `/query` and `/search` response chunks include `semantic_links`.
+- MCP `search_ocpp_knowledge`, `get_ocpp_evidence_pack`, and
+  `build_ocpp_implementation_brief` render chunk-level `Semantic Links` in
+  Markdown when graph provenance is available.
+- MCP `get_ocpp_entity` relationship output includes ontology version and
+  mapping-rule provenance when present.
+
+| Metric | Before exposure | After exposure | Delta |
+| --- | ---: | ---: | ---: |
+| API chunk semantic-link field | 0 | 1 | +1 |
+| MCP evidence-pack semantic-link block | 0 | 1 | +1 |
+| MCP formatting contract tests | 0 | 1 | +1 |
+| Graph semantic-link store tests | 0 | 1 | +1 |
+
+This does not change ranking. The concrete improvement is explainability:
+coding agents and API clients can now see which ontology rule connected a
+retrieved chunk to related OCPP entities.
+
 ## Conclusion
 
 Status: PASS.
@@ -118,12 +150,14 @@ Status: PASS.
 Introducing the ontology catalog and relinking the graph is safe for the current
 retrieval quality baseline and adds enterprise semantic governance. The concrete
 improvement is 100% ontology provenance coverage across existing graph
-relationships without losing embeddings.
+relationships without losing embeddings, plus source-aware semantic-link
+explanations in API and MCP evidence outputs.
 
 ## Next Benchmark
 
 The next benchmark should make retrieval consume ontology provenance directly:
 
-- expose relation provenance in evidence packs;
-- add ontology-aware graph traversal explanations;
-- compare graph contribution and answer trust before/after explainability.
+- add ontology-aware graph traversal/rerank features;
+- measure whether semantic-link traversal improves top evidence anchors;
+- compare graph contribution and answer trust before/after ontology-aware
+  retrieval scoring.

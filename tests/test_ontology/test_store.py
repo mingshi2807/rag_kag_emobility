@@ -7,6 +7,7 @@ import uuid
 
 from rag_ocpp.corpus.indexer import CorpusIndexer
 from rag_ocpp.ontology.store import OntologyStore
+from rag_ocpp.storage.vector import ChunkInsert
 
 
 async def test_ontology_seed_loads_idempotently(pool):
@@ -96,6 +97,64 @@ async def test_relationship_upsert_merges_ontology_properties(graph_store, pool)
     if isinstance(props, str):
         props = json.loads(props)
     assert props["legacy"] is True
+    assert props["ontology_version"] == "ocpp21-ed2-v1"
+    assert props["mapping_rule"] == "dm_component_variable"
+
+
+async def test_semantic_links_for_chunks_include_ontology_properties(
+    graph_store, vector_store, pool
+):
+    await OntologyStore(pool).load_seed()
+    doc_id = await vector_store.insert_document(
+        protocol_id=1,
+        source_path="corpus:test",
+        doc_type="other",
+        title="test",
+    )
+    chunk_id = uuid.uuid4()
+    await vector_store.insert_chunks([
+        ChunkInsert(
+            id=chunk_id,
+            document_id=doc_id,
+            chunk_index=0,
+            content="Component: ChargingStation. Variable: HeartbeatInterval.",
+            content_hash="semantic-link-test",
+            strategy="corpus_record",
+        )
+    ])
+    component = await graph_store.upsert_entity(
+        protocol_id=1,
+        type_id=3,
+        name="ChargingStation",
+    )
+    variable = await graph_store.upsert_entity(
+        protocol_id=1,
+        type_id=4,
+        name="HeartbeatInterval",
+    )
+    await graph_store.link_chunk_entity(chunk_id=chunk_id, entity_id=variable)
+    await graph_store.upsert_relationship(
+        source_id=component,
+        target_id=variable,
+        rel_type="component_has_variable",
+        properties={
+            "ontology_version": "ocpp21-ed2-v1",
+            "mapping_rule": "dm_component_variable",
+            "confidence": 0.98,
+        },
+        validate_ontology=True,
+    )
+
+    links = await graph_store.get_semantic_links_for_chunks([chunk_id])
+
+    assert chunk_id in links
+    assert links[chunk_id][0].rel_type == "component_has_variable"
+    assert links[chunk_id][0].direction == "incoming"
+    assert links[chunk_id][0].entity_name == "HeartbeatInterval"
+    assert links[chunk_id][0].related_entity_name == "ChargingStation"
+    props = links[chunk_id][0].properties
+    if isinstance(props, str):
+        props = json.loads(props)
     assert props["ontology_version"] == "ocpp21-ed2-v1"
     assert props["mapping_rule"] == "dm_component_variable"
 

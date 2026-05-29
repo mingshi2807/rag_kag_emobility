@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus ontology-governed graph relation semantics, agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, ontology provenance in API/MCP evidence packs, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus ontology-governed graph relation semantics, agent-facing MCP tools with semantic-link provenance, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -31,13 +31,14 @@ Query -> vector + keyword + graph retrieval
 - `src/rag_ocpp/ontology/` defines the lightweight OCPP 2.1 Ed2 ontology seed and storage adapter for semantic classes, relation types, evidence/source catalogs, and mapping rules.
 - `rag ontology-load`, `rag ontology-load --dry-run`, and `rag ontology-status` expose ontology seed loading and status checks through the CLI.
 - `src/rag_ocpp/corpus/indexer.py` resolves source-definition, Device Model, and JSON schema graph edges through ontology mapping rules and records ontology provenance on relationship properties.
+- `src/rag_ocpp/storage/graph.py` exposes chunk-level semantic links so API and MCP evidence can explain retrieved chunk/entity relationships with ontology version, mapping rule, evidence layer, source type, and confidence.
 - `src/rag_ocpp/corpus/` normalizes source-aware evidence records from the OCPP 2.1 Ed2 Part 2 PDF, Device Model CSV/XLSX files, and JSON schemas.
 - `src/rag_ocpp/cli/corpus.py` adds `rag corpus`, defaulting to dry-run preview; use `--store` to write source/corpus records.
 - `rag index-corpus` indexes stored corpus records into `chunks`, embeddings, graph entities, chunk/entity links, and source-definition relationships.
 - `rag corpus-status`, `GET /corpus/status`, and MCP `inspect_ocpp_corpus` share `src/rag_ocpp/corpus/status.py` for corpus and index count semantics.
 - `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` now parameterize the previous keyword/entity ILIKE fallback SQL paths.
 - `docs/ingest.md`, `docs/dev_journey.md`, and `docs/plan_note.md` still describe older BGE-base, 768-dimensional, SDPM/512-token assumptions.
-- `docs/mcp.md` documents nine MCP read tools, including filtered search, evidence packs, implementation briefs, corpus status, chunk/entity lookup, and section search.
+- `docs/mcp.md` documents nine MCP read tools, including filtered search, ontology-backed semantic links in evidence packs, implementation briefs, corpus status, chunk/entity lookup, and section search.
 - `.codex/skills/` contains repo-local OCPP RAG/KAG workflow skills for improvement, expert review, query eval, implementation guides, and smoke testing.
 - `docs/query_quality_eval.md` documents `rag eval-quality` and `rag eval-answers` gates for Section R DER, Section Q V2X, and Section K smart charging.
 - `reports/ocpp21-ed2-rqk-quality-baseline.md` records a 12-case retrieval baseline: `12/12` passed, score `0.976`.
@@ -71,7 +72,7 @@ Query -> vector + keyword + graph retrieval
 3. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
 4. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
 5. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
-6. Add API/MCP read-only ontology inspection endpoints and contract tests once the ontology model stabilizes.
+6. Add API/MCP read-only ontology inspection endpoints once the ontology model stabilizes.
 7. Add API/CLI/MCP contract parity tests for corpus indexing and generated-answer Markdown behavior.
 
 ## Verification Commands
@@ -87,6 +88,7 @@ rag eval data/eval/queries.jsonl --top-k 10
 .venv/bin/pytest tests/test_storage/test_migrations.py -q
 .venv/bin/pytest tests/test_ontology/test_store.py -q
 .venv/bin/pytest tests/test_api -q
+.venv/bin/pytest tests/test_mcp -q
 .venv/bin/rag migrate-status
 .venv/bin/rag ontology-status
 HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80

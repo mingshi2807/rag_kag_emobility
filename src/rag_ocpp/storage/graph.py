@@ -17,6 +17,21 @@ def _json(v: Any) -> str | None:
     return json.dumps(v)
 
 
+def _json_dict(v: Any) -> dict[str, Any] | None:
+    """Normalize JSONB values returned by asyncpg codecs."""
+    if v is None:
+        return None
+    if isinstance(v, dict):
+        return dict(v)
+    if isinstance(v, str):
+        try:
+            parsed = json.loads(v)
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
 # ── Data types ────────────────────────────────────────────
 
 @dataclass
@@ -74,6 +89,20 @@ class EntityChunkResult:
     entity_name: str
     entity_type: str
     confidence: float
+
+
+@dataclass
+class ChunkSemanticLink:
+    """Ontology-backed relationship connected to a retrieved chunk entity."""
+
+    chunk_id: UUID
+    entity_name: str
+    entity_type: str
+    rel_type: str
+    direction: str
+    related_entity_name: str
+    related_entity_type: str
+    properties: dict[str, Any] | None = None
 
 
 # ── Store ─────────────────────────────────────────────────
@@ -382,6 +411,82 @@ class GraphStore:
             )
             for r in rows
         ]
+
+    async def get_semantic_links_for_chunks(
+        self,
+        chunk_ids: list[UUID],
+        *,
+        max_links_per_chunk: int = 5,
+    ) -> dict[UUID, list[ChunkSemanticLink]]:
+        """Return ontology relationship summaries for retrieved chunks."""
+        if not chunk_ids:
+            return {}
+        rows = await self._pool.fetch(
+            """
+            WITH requested AS (
+                SELECT unnest($1::uuid[]) AS chunk_id
+            ),
+            links AS (
+                SELECT
+                    ce.chunk_id,
+                    e.name AS entity_name,
+                    et.name AS entity_type,
+                    r.rel_type,
+                    CASE WHEN r.source_id = e.id THEN 'outgoing' ELSE 'incoming' END
+                        AS direction,
+                    related.name AS related_entity_name,
+                    ret.name AS related_entity_type,
+                    r.properties,
+                    row_number() OVER (
+                        PARTITION BY ce.chunk_id
+                        ORDER BY
+                            CASE
+                                WHEN COALESCE(r.properties, '{}'::jsonb)
+                                     ? 'ontology_version' THEN 0
+                                ELSE 1
+                            END,
+                            r.rel_type,
+                            related.name
+                    ) AS rank
+                FROM requested req
+                JOIN chunk_entities ce ON ce.chunk_id = req.chunk_id
+                JOIN entities e ON e.id = ce.entity_id
+                JOIN entity_types et
+                  ON et.id = e.type_id AND et.protocol_id = e.protocol_id
+                JOIN relationships r ON r.source_id = e.id OR r.target_id = e.id
+                JOIN entities related
+                  ON related.id = CASE
+                      WHEN r.source_id = e.id THEN r.target_id
+                      ELSE r.source_id
+                  END
+                JOIN entity_types ret
+                  ON ret.id = related.type_id
+                 AND ret.protocol_id = related.protocol_id
+            )
+            SELECT *
+            FROM links
+            WHERE rank <= $2
+            ORDER BY chunk_id, rank
+            """,
+            chunk_ids,
+            max(1, int(max_links_per_chunk)),
+        )
+        links: dict[UUID, list[ChunkSemanticLink]] = {}
+        for row in rows:
+            chunk_id = row["chunk_id"]
+            links.setdefault(chunk_id, []).append(
+                ChunkSemanticLink(
+                    chunk_id=chunk_id,
+                    entity_name=row["entity_name"],
+                    entity_type=row["entity_type"],
+                    rel_type=row["rel_type"],
+                    direction=row["direction"],
+                    related_entity_name=row["related_entity_name"],
+                    related_entity_type=row["related_entity_type"],
+                    properties=_json_dict(row["properties"]),
+                )
+            )
+        return links
 
     # ── Chunk–Entity Bridge ────────────────────────────
 

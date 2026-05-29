@@ -22,7 +22,7 @@ from rag_ocpp.privacy import configure_redacted_logging
 from rag_ocpp.retrieval.hybrid import HybridRetriever, SearchFilters
 from rag_ocpp.retrieval.reranker import CrossEncoderReranker
 from rag_ocpp.storage.audit import AuditEvent, AuditStore, sensitive_text_ref
-from rag_ocpp.storage.graph import GraphStore
+from rag_ocpp.storage.graph import ChunkSemanticLink, GraphStore
 from rag_ocpp.storage.vector import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -239,12 +239,20 @@ async def _search(srv, args):
         ),
     )
     chunks = r.chunks[:top_k]
+    semantic_links = await _semantic_links(srv, chunks)
     lines = [
         f"# OCPP Knowledge Search\n\nQuery: `{args['query']}`\n\n"
         f"Returned: `{len(chunks)}` chunks. Strategy breakdown: `{r.strategy_breakdown}`.\n"
     ]
     for i, c in enumerate(chunks, 1):
-        lines.append(_format_chunk(c, i, max_chars=max_chars))
+        lines.append(
+            _format_chunk(
+                c,
+                i,
+                max_chars=max_chars,
+                semantic_links=semantic_links.get(c.chunk_id, []),
+            )
+        )
     return "\n".join(lines)
 
 
@@ -269,6 +277,7 @@ async def _evidence_pack(srv, args):
         ),
     )
     chunks = r.chunks[:top_k]
+    semantic_links = await _semantic_links(srv, chunks)
     groups: dict[str, list[Any]] = {"spec": [], "device_model": [], "schema": [], "unknown": []}
     for chunk in chunks:
         layer = (chunk.metadata or {}).get("evidence_layer") or "unknown"
@@ -287,7 +296,14 @@ async def _evidence_pack(srv, args):
             continue
         lines.extend(["", f"## {layer}", ""])
         for i, chunk in enumerate(groups[layer], 1):
-            lines.append(_format_chunk(chunk, i, max_chars=max_chars))
+            lines.append(
+                _format_chunk(
+                    chunk,
+                    i,
+                    max_chars=max_chars,
+                    semantic_links=semantic_links.get(chunk.chunk_id, []),
+                )
+            )
     return "\n".join(lines)
 
 
@@ -459,10 +475,12 @@ async def _entity(srv, args):
         f"## Relationships ({len(rels)})",
     ]
     for r in rels:
+        props = _metadata(r.properties)
+        provenance = _relationship_provenance(props)
         out.append(
-            f"  {r.rel_type} → {r.target_id}"
+            f"  {r.rel_type} → {r.target_id}{provenance}"
             if r.source_id == e.id
-            else f"  ← {r.rel_type} {r.source_id}"
+            else f"  ← {r.rel_type} {r.source_id}{provenance}"
         )
     if chunks:
         out.extend(["", "## Linked Chunks"])
@@ -561,10 +579,32 @@ def _source_label(metadata: dict[str, Any]) -> str:
     return metadata.get("source_path") or metadata.get("source_type") or "unknown source"
 
 
-def _format_chunk(chunk, index: int, *, max_chars: int) -> str:
+async def _semantic_links(
+    srv,
+    chunks: list[Any],
+) -> dict[UUID, list[ChunkSemanticLink]]:
+    if srv.graph_store is None or not chunks:
+        return {}
+    try:
+        return await srv.graph_store.get_semantic_links_for_chunks(
+            [chunk.chunk_id for chunk in chunks],
+            max_links_per_chunk=5,
+        )
+    except Exception as exc:
+        logger.warning("Semantic link lookup failed: %s", exc)
+        return {}
+
+
+def _format_chunk(
+    chunk,
+    index: int,
+    *,
+    max_chars: int,
+    semantic_links: list[ChunkSemanticLink] | None = None,
+) -> str:
     metadata = chunk.metadata or {}
     page = f" p.{chunk.page_start}" if chunk.page_start else ""
-    return (
+    text = (
         f"## {index}. {chunk.section_title or 'Section'}{page}\n\n"
         f"- Chunk ID: `{chunk.chunk_id}`\n"
         f"- Document ID: `{chunk.document_id}`\n"
@@ -575,6 +615,39 @@ def _format_chunk(chunk, index: int, *, max_chars: int) -> str:
         f"- Source: `{_source_label(metadata)}`\n\n"
         f"{_clip(chunk.content, max_chars)}\n"
     )
+    links = semantic_links or []
+    if links:
+        text += "\n### Semantic Links\n\n"
+        text += "\n".join(f"- {_format_semantic_link(link)}" for link in links)
+        text += "\n"
+    return text
+
+
+def _format_semantic_link(link: ChunkSemanticLink) -> str:
+    props = link.properties or {}
+    version = props.get("ontology_version") or "unversioned"
+    rule = props.get("mapping_rule") or "unknown_rule"
+    confidence = props.get("confidence")
+    confidence_text = f", confidence `{confidence}`" if confidence is not None else ""
+    return (
+        f"`{link.rel_type}` {link.direction} "
+        f"`{link.entity_name}` ({link.entity_type}) ↔ "
+        f"`{link.related_entity_name}` ({link.related_entity_type}) "
+        f"[ontology `{version}`, rule `{rule}`{confidence_text}]"
+    )
+
+
+def _relationship_provenance(properties: dict[str, Any]) -> str:
+    version = properties.get("ontology_version")
+    rule = properties.get("mapping_rule")
+    if not version and not rule:
+        return ""
+    parts = []
+    if version:
+        parts.append(f"ontology `{version}`")
+    if rule:
+        parts.append(f"rule `{rule}`")
+    return f" ({', '.join(parts)})"
 
 
 def _clip(text: str, max_chars: int) -> str:

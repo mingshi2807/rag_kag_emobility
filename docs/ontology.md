@@ -28,6 +28,37 @@ Apply migrations, then load the default ontology seed:
 `rag index-corpus` auto-loads the default seed when ontology tables exist but no
 active ontology version is present.
 
+## Retrieval Provenance
+
+FastAPI query/search responses and MCP evidence-pack outputs now expose semantic
+links for retrieved chunks when the chunk is connected to graph entities. These
+links are compact ontology-backed explanations, not extra private source text.
+
+FastAPI `sources[]` / `results[]` include a `semantic_links` array with fields
+such as:
+
+```json
+{
+  "entity_name": "ChargingStation",
+  "entity_type": "component",
+  "rel_type": "component_has_variable",
+  "direction": "outgoing",
+  "related_entity_name": "HeartbeatInterval",
+  "related_entity_type": "variable",
+  "ontology_version": "ocpp21-ed2-v1",
+  "mapping_rule": "dm_component_variable",
+  "evidence_layer": "device_model",
+  "source_type": "device_model_table",
+  "confidence": 0.98
+}
+```
+
+MCP `search_ocpp_knowledge`, `get_ocpp_evidence_pack`, and
+`build_ocpp_implementation_brief` render the same relation provenance under
+`Semantic Links` in Markdown. Coding agents should use this block to explain why
+a spec, Device Model, or schema chunk is semantically connected to another OCPP
+entity.
+
 ## Current OCPP Relations
 
 The first seed is `ocpp21-ed2-v1` and includes these active graph relations:

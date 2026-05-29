@@ -8,14 +8,14 @@
 
 The repository is a credible prototype, not an enterprise-grade private knowledge platform yet.
 
-The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, ontology-governed graph schema foundation, API/CLI/MCP access surfaces, admin-controlled API mutation endpoints, source-aware corpus API operations, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader MCP contract tests, and operational runbooks.
+The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, ontology-governed graph schema foundation, ontology provenance in API/MCP evidence outputs, API/CLI/MCP access surfaces, admin-controlled API mutation endpoints, source-aware corpus API operations, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader MCP contract tests, and operational runbooks.
 
 ## Strict Criteria
 
 | Criterion | Status | Evidence | Enterprise Risk |
 | --- | --- | --- | --- |
 | Source-grounded retrieval | Partial | Vector, keyword, graph, RRF, rerank pipeline and R/Q/K eval baselines exist. | Coverage is still narrow outside the initial R/Q/K topics. |
-| KAG graph fidelity | Partial | Entity and relationship tables exist, and source-aware ontology mapping rules now govern initial relationship types. | Traversal precision, alias governance, and broad relationship quality metrics are not complete. |
+| KAG graph fidelity | Partial | Entity and relationship tables exist, source-aware ontology mapping rules govern initial relationship types, and API/MCP evidence can expose chunk-level semantic links. | Traversal precision, alias governance, and broad relationship quality metrics are not complete. |
 | Private-data protection | Partial | Redacted logging, privacy-preserving audit events, and API admin mutation guards exist. | Source ACLs, retention/deletion policy, and tenant isolation are not complete. |
 | Reproducibility | Partial | Docker, CLI, migration commands, and install docs exist. | Docker bootstrap still uses `schema.sql`; broader rollback, backup, restore, and CI migration gates are not complete. |
 | Evaluation governance | Partial | Retrieval and generated-answer eval reports exist for R/Q/K topics. | Eval gates are not wired to CI and coverage beyond R/Q/K remains limited. |
@@ -31,7 +31,8 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 - `src/rag_ocpp/storage/migrations.py` and `src/rag_ocpp/storage/migrations/` provide explicit SQL migrations tracked in `schema_migrations`, including legacy repair for missing `audit_events`.
 - `src/rag_ocpp/ontology/` defines the `ocpp21-ed2-v1` lightweight ontology seed and storage adapter for semantic classes, relation types, evidence/source catalogs, and mapping rules.
 - `src/rag_ocpp/corpus/indexer.py` records ontology version, relation, mapping rule, evidence layer, source type, confidence, stable key, and corpus record ID on ontology-driven graph relationship properties.
-- `tests/test_ontology/test_store.py` covers ontology seed loading, relationship validation, and corpus indexer ontology provenance.
+- `src/rag_ocpp/storage/graph.py` exposes chunk-level semantic links used by API and MCP evidence outputs to explain retrieved chunk/entity relationships.
+- `tests/test_ontology/test_store.py` covers ontology seed loading, relationship validation, chunk semantic links, and corpus indexer ontology provenance.
 - `docs/db_migrations.md` documents fresh DB migration setup and legacy `schema.sql` baseline adoption.
 - `docs/ingest.md` describes SDPM chunking, 512-token chunks, 64 overlap, BGE-base, GPU batch 256, and 768-dimensional memory estimates.
 - `docs/dev_journey.md` describes BGE-base 768-dimensional architecture and SDPM 512/64 chunking.
@@ -41,7 +42,7 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 - `tests/test_corpus/test_status_contract.py` verifies the shared corpus status count contract used by API, CLI, and MCP surfaces.
 - Mutating API endpoints require configured `API_ADMIN_TOKEN` bearer auth; otherwise they are disabled.
 - `POST /corpus/preview`, `POST /corpus/store`, and `POST /corpus/index` provide the preferred source-aware OCPP corpus API path. `GET /corpus/status` exposes read-only corpus/index counts.
-- `docs/mcp.md` documents nine MCP read tools and the Codex-assisted manual benchmark workflow.
+- `docs/mcp.md` documents nine MCP read tools, ontology-backed semantic links, and the Codex-assisted manual benchmark workflow.
 - `src/rag_ocpp/storage/vector.py` and `src/rag_ocpp/storage/graph.py` parameterize keyword/entity fallback SQL paths.
 - `tests/test_retrieval/test_vector_search.py` uses inserted document UUIDs and deterministic 1024-dimensional embeddings.
 
@@ -88,9 +89,9 @@ The system handles proprietary protocol documents and generated answers. Redacte
 **Severity:** High
 **Confidence:** Medium
 
-Tests exist for chunking, ingestion cleaning, metadata, extraction, vector search, audit events, migrations, and FastAPI query/search contracts. Docker-backed tests may skip entirely. MCP contract tests and broader generation safety tests are still incomplete.
+Tests exist for chunking, ingestion cleaning, metadata, extraction, vector search, audit events, migrations, FastAPI query/search contracts, and one MCP evidence-formatting contract. Docker-backed tests may skip entirely. Broader MCP contract tests and broader generation safety tests are still incomplete.
 
-**Required improvement:** Add MCP contract tests, broaden eval tests, and record skipped integration tests as an explicit CI signal.
+**Required improvement:** Expand MCP contract tests beyond evidence formatting, broaden eval tests, and record skipped integration tests as an explicit CI signal.
 
 ### 6. Operations Are Under-Specified
 
@@ -114,11 +115,11 @@ MCP docs say `top_k` defaults to 5 and maxes at 20, while server startup initial
 
 1. **Stabilize the data contract lifecycle.** Keep schema changes migration-first, document rollback/re-embedding, and update stale docs.
 2. **Close remaining input-contract gaps.** Share API/CLI/MCP validation, validate traversal inputs, and add hostile-input tests.
-3. **Broaden the test baseline.** Add API/MCP contract tests, run unit tests, and make Docker skips visible in CI.
+3. **Broaden the test baseline.** Add more API/MCP contract tests, run unit tests, and make Docker skips visible in CI.
 4. **Expand the eval gate.** Extend curated e-mobility query sets with expected chunks, entities, protocols, and citation requirements. Track Recall@5/10, MRR, NDCG, graph contribution, latency, and hallucination checks.
 5. **Add privacy controls.** Define data classes, source ACLs, secret handling, redacted logging, prompt/context retention, deletion, and audit events.
 6. **Make ingestion production-grade.** Add idempotent job records, chunk provenance, checksum manifests, failed-page capture, reprocessing controls, and source versioning.
-7. **Improve KAG quality.** Extend ontology-driven relationship provenance into retrieval explainability, add confidence calibration, entity alias governance, cross-protocol mapping review, and traversal-quality metrics.
+7. **Improve KAG quality.** Use ontology-driven relationship provenance in retrieval scoring/traversal, add confidence calibration, entity alias governance, cross-protocol mapping review, and traversal-quality metrics.
 8. **Improve answer trust.** Require citations, separate retrieved evidence from generated synthesis, include abstention behavior, and add answer faithfulness evaluation.
 9. **Optimize serving.** Keep models warm in API/MCP process, measure cold/warm latency separately, tune reranking, and add cache boundaries that respect private-data controls.
 10. **Prepare enterprise operation.** Add backup/restore, index rebuild, model upgrade, credential rotation, incident response, and release checklists.

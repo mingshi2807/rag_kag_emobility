@@ -127,6 +127,8 @@ Expected:
 - `results` contains up to three chunks
 - each returned chunk has `evidence_layer=device_model`
 - `content` is `null` when `include_content=false`
+- `semantic_links` is present on each chunk and contains ontology provenance
+  when the chunk is linked to graph entities
 
 ## Generated Answer Checks
 
@@ -147,7 +149,8 @@ Expected:
 
 - HTTP `200`
 - `answer` is non-empty Markdown
-- `sources` contains source-aware chunks
+- `sources` contains source-aware chunks with `semantic_links` provenance when
+  graph links are available
 - server logs show a DeepSeek request using `deepseek-v4-pro`
 
 Streaming generation:

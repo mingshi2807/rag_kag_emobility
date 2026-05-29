@@ -107,6 +107,7 @@ class ScoredChunkResponse(BaseModel):
     source_type: str | None = None
     source_path: str | None = None
     content_hash: str | None = None
+    semantic_links: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class QueryResponse(BaseModel):
