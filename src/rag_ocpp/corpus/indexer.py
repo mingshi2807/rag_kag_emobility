@@ -13,10 +13,10 @@ import asyncpg
 from rag_ocpp.embedding.batch import BatchEmbedder
 from rag_ocpp.embedding.model import EmbeddingModel
 from rag_ocpp.knowledge.entities import OCPPEntityType
+from rag_ocpp.ontology.store import DEFAULT_ONTOLOGY_PATH, OntologyRelation, OntologyStore
 from rag_ocpp.storage.corpus import CorpusStore
 from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.vector import ChunkInsert, VectorStore
-
 
 ENTITY_TYPE_IDS = {member.label: member.type_id for member in OCPPEntityType}
 
@@ -43,8 +43,10 @@ class CorpusIndexer:
         self._corpus = CorpusStore(pool)
         self._vector = VectorStore(pool)
         self._graph = GraphStore(pool)
+        self._ontology = OntologyStore(pool)
         self._embedding_model = embedding_model
         self._embedder: BatchEmbedder | None = None
+        self._ontology_checked = False
 
     async def index_all(
         self,
@@ -189,6 +191,7 @@ class CorpusIndexer:
     ) -> tuple[int, int]:
         entities_linked = 0
         relationships_created = 0
+        await self._ensure_default_ontology()
         source_entity_id = await self._source_entity(source)
 
         for chunk, record in zip(chunks, records, strict=True):
@@ -201,19 +204,23 @@ class CorpusIndexer:
                 confidence=1.0,
             )
             entities_linked += 1
-            rel_type = self._source_relationship_type(record)
+            rel = await self._source_relationship(record, source)
             await self._graph.upsert_relationship(
                 source_id=source_entity_id,
                 target_id=entity_id,
-                rel_type=rel_type,
-                properties={
-                    "corpus_record_id": str(record["id"]),
-                    "stable_key": record["stable_key"],
-                    "record_type": record["record_type"],
-                },
+                rel_type=rel.name,
+                properties=rel.properties(
+                    source_record_id=str(record["id"]),
+                    stable_key=record["stable_key"],
+                    record_type=record["record_type"],
+                ),
+                validate_ontology=rel.ontology_version != "legacy-fallback",
+                protocol_id=source["protocol_id"],
             )
             relationships_created += 1
-            relationships_created += await self._record_relationships(record, entity_id)
+            relationships_created += await self._record_relationships(
+                record, entity_id, source
+            )
 
         return entities_linked, relationships_created
 
@@ -227,6 +234,7 @@ class CorpusIndexer:
                 "source_document_id": str(source["id"]),
                 "source_type": source["source_type"],
                 "content_hash": source["content_hash"],
+                "ontology_class": "source_document",
             },
         )
 
@@ -245,54 +253,139 @@ class CorpusIndexer:
                 "corpus_record_id": str(record["id"]),
                 "stable_key": record["stable_key"],
                 "record_type": record["record_type"],
+                "ontology_class": entity_type,
             },
         )
 
-    async def _record_relationships(self, record: dict[str, Any], entity_id: UUID) -> int:
+    async def _record_relationships(
+        self, record: dict[str, Any], entity_id: UUID, source: dict[str, Any]
+    ) -> int:
         metadata = _metadata(record)
         rels = 0
         if record["record_type"] == "schema_field":
             message = metadata.get("message")
             path = metadata.get("path")
             if message and path and "." not in path:
+                rel = await self._ontology_relation(
+                    record,
+                    source,
+                    preferred_rule="schema_top_level_field",
+                    fallback="message_has_field",
+                )
                 message_id = await self._graph.upsert_entity(
                     protocol_id=1,
                     type_id=ENTITY_TYPE_IDS["message"],
                     name=message,
-                    properties={"source": "json_schema"},
+                    properties={
+                        "source": "json_schema",
+                        "ontology_class": "message",
+                    },
                 )
                 await self._graph.upsert_relationship(
                     source_id=message_id,
                     target_id=entity_id,
-                    rel_type="message_has_field",
-                    properties={
-                        "required": metadata.get("required", False),
-                        "path": path,
-                    },
+                    rel_type=rel.name,
+                    properties=rel.properties(
+                        source_record_id=str(record["id"]),
+                        stable_key=record["stable_key"],
+                        record_type=record["record_type"],
+                        extra={
+                            "required": metadata.get("required", False),
+                            "path": path,
+                        },
+                    ),
+                    validate_ontology=rel.ontology_version != "legacy-fallback",
                 )
                 rels += 1
         elif record["record_type"] == "dm_component_variable":
             component = metadata.get("specific_component") or metadata.get("component")
             variable = metadata.get("variable")
             if component and variable:
+                rel = await self._ontology_relation(
+                    record,
+                    source,
+                    preferred_rule="dm_component_variable",
+                    fallback="component_has_variable",
+                )
                 component_id = await self._graph.upsert_entity(
                     protocol_id=1,
                     type_id=ENTITY_TYPE_IDS["component"],
                     name=component,
-                    properties={"source": "device_model"},
+                    properties={
+                        "source": "device_model",
+                        "ontology_class": "component",
+                    },
                 )
                 await self._graph.upsert_relationship(
                     source_id=component_id,
                     target_id=entity_id,
-                    rel_type="component_has_variable",
-                    properties={
-                        "required": metadata.get("required"),
-                        "datatype": metadata.get("datatype"),
-                        "unit": metadata.get("unit"),
-                    },
+                    rel_type=rel.name,
+                    properties=rel.properties(
+                        source_record_id=str(record["id"]),
+                        stable_key=record["stable_key"],
+                        record_type=record["record_type"],
+                        extra={
+                            "required": metadata.get("required"),
+                            "datatype": metadata.get("datatype"),
+                            "unit": metadata.get("unit"),
+                        },
+                    ),
+                    validate_ontology=rel.ontology_version != "legacy-fallback",
                 )
                 rels += 1
         return rels
+
+    async def _source_relationship(
+        self, record: dict[str, Any], source: dict[str, Any]
+    ) -> OntologyRelation:
+        fallback = self._source_relationship_type(record)
+        return await self._ontology_relation(
+            record,
+            source,
+            preferred_rule=self._source_mapping_rule(record, source),
+            fallback=fallback,
+        )
+
+    async def _ontology_relation(
+        self,
+        record: dict[str, Any],
+        source: dict[str, Any],
+        *,
+        fallback: str,
+        preferred_rule: str | None = None,
+    ) -> OntologyRelation:
+        record_metadata = _metadata(record)
+        source_metadata = _metadata(source)
+        rel = await self._ontology.resolve_relation(
+            record_type=record["record_type"],
+            source_type=source.get("source_type") or record_metadata.get("source_type"),
+            evidence_layer=(
+                source_metadata.get("evidence_layer")
+                or record_metadata.get("evidence_layer")
+            ),
+            preferred_rule=preferred_rule,
+            protocol_id=source.get("protocol_id", 1),
+        )
+        if rel is not None:
+            return rel
+        return OntologyRelation(
+            name=fallback,
+            ontology_version="legacy-fallback",
+            mapping_rule="legacy_hardcoded",
+            evidence_layer=source_metadata.get("evidence_layer")
+            or record_metadata.get("evidence_layer"),
+            source_type=source.get("source_type") or record_metadata.get("source_type"),
+        )
+
+    async def _ensure_default_ontology(self) -> None:
+        if self._ontology_checked:
+            return
+        self._ontology_checked = True
+        catalog = await self._pool.fetchval("SELECT to_regclass('ontology_versions')")
+        if catalog is None:
+            return
+        if await self._ontology.active_version(protocol_id=1) is None:
+            await self._ontology.load_seed(DEFAULT_ONTOLOGY_PATH)
 
     def _source_relationship_type(self, record: dict[str, Any]) -> str:
         if record["record_type"].startswith("schema"):
@@ -300,6 +393,17 @@ class CorpusIndexer:
         if record["record_type"].startswith("dm"):
             return "dm_defines_entity"
         return "spec_defines_entity"
+
+    def _source_mapping_rule(self, record: dict[str, Any], source: dict[str, Any]) -> str:
+        if source.get("source_type") == "json_schema" or record["record_type"].startswith(
+            "schema"
+        ):
+            return "source_schema_records"
+        if source.get("source_type") == "device_model_table":
+            return "source_dm_records"
+        if source.get("source_type") == "appendix_csv":
+            return "source_appendix_records"
+        return "source_spec_records"
 
     def _get_embedder(self) -> BatchEmbedder:
         if self._embedding_model is None:

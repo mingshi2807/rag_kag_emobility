@@ -288,8 +288,12 @@ class GraphStore:
         target_id: UUID,
         rel_type: str,
         properties: dict[str, Any] | None = None,
+        validate_ontology: bool = False,
+        protocol_id: int = 1,
     ) -> UUID:
         """Create a relationship edge. No-op if (source, target, type) already exists."""
+        if validate_ontology:
+            await self._validate_relation_type(rel_type, protocol_id=protocol_id)
         row = await self._pool.fetchrow(
             """
             INSERT INTO relationships (source_id, target_id, rel_type, properties)
@@ -311,6 +315,28 @@ class GraphStore:
         )
         assert existing is not None
         return existing["id"]
+
+    async def _validate_relation_type(self, rel_type: str, *, protocol_id: int) -> None:
+        """Validate a relationship type when the ontology catalog is installed."""
+        catalog = await self._pool.fetchval("SELECT to_regclass('ontology_relation_types')")
+        if catalog is None:
+            return
+        row = await self._pool.fetchrow(
+            """
+            SELECT 1
+            FROM ontology_relation_types rt
+            JOIN ontology_versions ov
+              ON ov.protocol_id = rt.protocol_id
+             AND ov.version = rt.ontology_version
+             AND ov.status = 'active'
+            WHERE rt.protocol_id = $1 AND rt.name = $2
+            LIMIT 1
+            """,
+            protocol_id,
+            rel_type,
+        )
+        if row is None:
+            raise ValueError(f"Relationship type is not in active ontology: {rel_type}")
 
     async def get_relationships(
         self,

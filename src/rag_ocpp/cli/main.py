@@ -10,6 +10,7 @@ from rag_ocpp.cli.corpus import (
 from rag_ocpp.cli.db import migrate_command, migrate_status_command
 from rag_ocpp.cli.eval import eval_answers_command, eval_quality_command, eval_retrieval
 from rag_ocpp.cli.ingest import ingest_command
+from rag_ocpp.cli.ontology import ontology_load_command, ontology_status_command
 from rag_ocpp.cli.query import query_command
 
 app = typer.Typer(
@@ -24,6 +25,8 @@ app.command(name="corpus-status")(corpus_status_command)
 app.command(name="index-corpus")(index_corpus_command)
 app.command(name="migrate")(migrate_command)
 app.command(name="migrate-status")(migrate_status_command)
+app.command(name="ontology-load")(ontology_load_command)
+app.command(name="ontology-status")(ontology_status_command)
 app.command(name="query")(query_command)
 app.command(name="eval")(eval_retrieval)
 app.command(name="eval-quality")(eval_quality_command)

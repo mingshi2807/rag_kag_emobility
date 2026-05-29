@@ -43,7 +43,8 @@ Use `--baseline` only when the database already matches the current schema. The
 command validates key baseline tables before recording the initial schema
 migration, but it does not rebuild or diff the database. Running `rag migrate`
 afterwards applies any follow-up repair migrations, such as creating
-`audit_events` on older local databases.
+`audit_events` on older local databases and adding the source-aware ontology
+catalog.
 
 ## Rules
 
@@ -70,16 +71,17 @@ docker compose up -d
 Expected result after `rag migrate`:
 
 ```text
-Applied 2 migration(s).
+Applied 3 migration(s).
   + 001 initial_schema
   + 002 ensure_audit_events
+  + 003 ontology_catalog
 ```
 
 Expected result after a second `rag migrate`:
 
 ```text
 Applied 0 migration(s).
-Skipped 2 already-applied migration(s).
+Skipped 3 already-applied migration(s).
 ```
 
 ## Legacy Local Database Flow
@@ -98,4 +100,20 @@ Expected status:
 ```text
 001 initial_schema: applied at <timestamp>
 002 ensure_audit_events: applied at <timestamp>
+003 ontology_catalog: applied at <timestamp>
 ```
+
+## Ontology Catalog
+
+Migration `003_ontology_catalog.sql` creates the lightweight ontology catalog
+used to validate and explain graph relationship semantics. Load or refresh the
+default OCPP 2.1 Ed2 ontology seed after migrations:
+
+```bash
+.venv/bin/rag ontology-load --dry-run
+.venv/bin/rag ontology-load
+.venv/bin/rag ontology-status
+```
+
+The corpus indexer also auto-loads the default seed when the ontology tables
+exist but no active ontology version has been loaded yet.

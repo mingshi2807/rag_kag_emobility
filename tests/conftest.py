@@ -6,8 +6,8 @@ import asyncpg
 import pytest
 from testcontainers.postgres import PostgresContainer
 
-from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.audit import AuditStore
+from rag_ocpp.storage.graph import GraphStore
 from rag_ocpp.storage.vector import VectorStore
 
 
@@ -60,7 +60,10 @@ async def pool(postgres_container):
         await conn.execute("""INSERT INTO entity_types VALUES
             (1,1,'command'),(2,1,'datatype'),(3,1,'component'),
             (4,1,'variable'),(5,1,'enum'),(6,1,'message_flow'),
-            (7,1,'functional_block'),(8,1,'error_code'),(9,1,'test_case')
+            (7,1,'functional_block'),(8,1,'error_code'),(9,1,'test_case'),
+            (10,1,'message'),(11,1,'request'),(12,1,'response'),
+            (13,1,'field'),(14,1,'attribute'),(15,1,'requirement'),
+            (16,1,'schema')
             ON CONFLICT DO NOTHING""")
         await conn.execute("""CREATE TABLE IF NOT EXISTS documents (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -94,6 +97,8 @@ async def pool(postgres_container):
             chunk_id UUID NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
             entity_id UUID NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
             confidence REAL DEFAULT 1.0,
+            span_start INT,
+            span_end INT,
             PRIMARY KEY (chunk_id, entity_id))""")
         await conn.execute("""CREATE TABLE IF NOT EXISTS query_log (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -106,6 +111,54 @@ async def pool(postgres_container):
             correlation_id TEXT, resource_type TEXT, resource_id TEXT,
             latency_ms INT, metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ DEFAULT now())""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS ontology_versions (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            protocol_id SMALLINT NOT NULL REFERENCES protocols(id),
+            version TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+            description TEXT, properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            UNIQUE(protocol_id, version))""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS ontology_entity_classes (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            protocol_id SMALLINT NOT NULL REFERENCES protocols(id),
+            ontology_version TEXT NOT NULL, name TEXT NOT NULL, label TEXT,
+            description TEXT, parent_name TEXT,
+            properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            UNIQUE(protocol_id, ontology_version, name))""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS ontology_relation_types (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            protocol_id SMALLINT NOT NULL REFERENCES protocols(id),
+            ontology_version TEXT NOT NULL, name TEXT NOT NULL, label TEXT,
+            description TEXT, source_class TEXT, target_class TEXT,
+            inverse_name TEXT, is_transitive BOOLEAN NOT NULL DEFAULT false,
+            is_symmetric BOOLEAN NOT NULL DEFAULT false,
+            properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            UNIQUE(protocol_id, ontology_version, name))""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS ontology_evidence_layers (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            protocol_id SMALLINT NOT NULL REFERENCES protocols(id),
+            ontology_version TEXT NOT NULL, name TEXT NOT NULL,
+            description TEXT, properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+            UNIQUE(protocol_id, ontology_version, name))""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS ontology_source_types (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            protocol_id SMALLINT NOT NULL REFERENCES protocols(id),
+            ontology_version TEXT NOT NULL, name TEXT NOT NULL,
+            evidence_layer TEXT NOT NULL, description TEXT,
+            properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+            UNIQUE(protocol_id, ontology_version, name))""")
+        await conn.execute("""CREATE TABLE IF NOT EXISTS ontology_mapping_rules (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            protocol_id SMALLINT NOT NULL REFERENCES protocols(id),
+            ontology_version TEXT NOT NULL, name TEXT NOT NULL,
+            relation_type TEXT NOT NULL, source_type TEXT, evidence_layer TEXT,
+            record_type_pattern TEXT, description TEXT,
+            confidence REAL NOT NULL DEFAULT 1.0,
+            properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            UNIQUE(protocol_id, ontology_version, name))""")
 
     yield pool
     await pool.close()
@@ -132,5 +185,8 @@ async def cleanup(pool):
     async with pool.acquire() as conn:
         await conn.execute(
             "TRUNCATE chunk_entities, relationships, entities, chunks, "
-            "documents, query_log, audit_events CASCADE"
+            "documents, query_log, audit_events, ontology_mapping_rules, "
+            "ontology_source_types, ontology_evidence_layers, "
+            "ontology_relation_types, ontology_entity_classes, "
+            "ontology_versions CASCADE"
         )

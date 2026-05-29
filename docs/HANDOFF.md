@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus ontology-governed graph relation semantics, agent-facing MCP tools, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -13,7 +13,7 @@ Build a private e-mobility knowledge base with LLM, RAG, and KAG integration for
 ```
 PDF/JSON -> parser -> cleaner -> metadata -> chunking
         -> embeddings -> PostgreSQL + pgvector
-        -> entity extraction/linking -> graph tables
+        -> ontology-governed entity/linking -> graph tables
 
 Query -> vector + keyword + graph retrieval
       -> weighted RRF -> reranker -> top chunks
@@ -28,6 +28,9 @@ Query -> vector + keyword + graph retrieval
 - `src/rag_ocpp/storage/migrations.py` and `src/rag_ocpp/storage/migrations/` provide explicit SQL migrations tracked by `schema_migrations`, including a legacy repair migration for missing `audit_events`.
 - `rag migrate`, `rag migrate --dry-run`, `rag migrate --baseline`, and `rag migrate-status` expose the DB migration workflow through the CLI.
 - `docs/db_migrations.md` documents fresh database setup and legacy `schema.sql` baseline adoption.
+- `src/rag_ocpp/ontology/` defines the lightweight OCPP 2.1 Ed2 ontology seed and storage adapter for semantic classes, relation types, evidence/source catalogs, and mapping rules.
+- `rag ontology-load`, `rag ontology-load --dry-run`, and `rag ontology-status` expose ontology seed loading and status checks through the CLI.
+- `src/rag_ocpp/corpus/indexer.py` resolves source-definition, Device Model, and JSON schema graph edges through ontology mapping rules and records ontology provenance on relationship properties.
 - `src/rag_ocpp/corpus/` normalizes source-aware evidence records from the OCPP 2.1 Ed2 Part 2 PDF, Device Model CSV/XLSX files, and JSON schemas.
 - `src/rag_ocpp/cli/corpus.py` adds `rag corpus`, defaulting to dry-run preview; use `--store` to write source/corpus records.
 - `rag index-corpus` indexes stored corpus records into `chunks`, embeddings, graph entities, chunk/entity links, and source-definition relationships.
@@ -68,7 +71,8 @@ Query -> vector + keyword + graph retrieval
 3. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
 4. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
 5. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
-6. Add API/CLI/MCP contract parity tests for corpus indexing and generated-answer Markdown behavior.
+6. Add API/MCP read-only ontology inspection endpoints and contract tests once the ontology model stabilizes.
+7. Add API/CLI/MCP contract parity tests for corpus indexing and generated-answer Markdown behavior.
 
 ## Verification Commands
 
@@ -81,8 +85,10 @@ rag eval data/eval/queries.jsonl --top-k 10
 .venv/bin/pytest tests/test_privacy.py tests/test_retrieval/test_vector_search.py -q
 .venv/bin/pytest tests/test_storage/test_audit.py -q
 .venv/bin/pytest tests/test_storage/test_migrations.py -q
+.venv/bin/pytest tests/test_ontology/test_store.py -q
 .venv/bin/pytest tests/test_api -q
 .venv/bin/rag migrate-status
+.venv/bin/rag ontology-status
 HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers --output reports/ocpp21-ed2-rqk-golden-answers.md
 HF_HOME=./models .venv/bin/rag eval-answers --from-answers-dir --answers-dir reports/golden_answers_codex-only --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
@@ -98,6 +104,8 @@ If Docker, model downloads, or DeepSeek credentials are unavailable, record the 
 - `src/rag_ocpp/storage/schema.sql` - database contract.
 - `src/rag_ocpp/storage/migrations.py` - explicit SQL migration runner.
 - `src/rag_ocpp/storage/migrations/` - versioned SQL migrations.
+- `src/rag_ocpp/ontology/` - lightweight source-aware ontology seed and storage adapter.
+- `docs/ontology.md` - ontology purpose, operator flow, relation catalog, and extension rules.
 - `src/rag_ocpp/storage/audit.py` - privacy-preserving audit event storage.
 - `src/rag_ocpp/corpus/ocpp21.py` - OCPP 2.1 Ed2 source-aware corpus parsers.
 - `src/rag_ocpp/corpus/indexer.py` - indexes corpus records into chunks, embeddings, and graph links.

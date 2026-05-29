@@ -58,6 +58,8 @@ async def test_migrations_apply_to_fresh_database(postgres_container):
                 'documents',
                 'chunks',
                 'audit_events',
+                'ontology_versions',
+                'ontology_relation_types',
                 'schema_migrations'
               )
             ORDER BY table_name
@@ -67,14 +69,16 @@ async def test_migrations_apply_to_fresh_database(postgres_container):
         await pool.close()
         await _drop_database(admin_dsn, db_name)
 
-    assert [migration.version for migration in result.applied] == ["001", "002"]
+    assert [migration.version for migration in result.applied] == ["001", "002", "003"]
     assert second.applied == []
-    assert [status.version for status in statuses] == ["001", "002"]
+    assert [status.version for status in statuses] == ["001", "002", "003"]
     assert all(status.applied for status in statuses)
     assert {row["table_name"] for row in table_rows} == {
         "audit_events",
         "chunks",
         "documents",
+        "ontology_relation_types",
+        "ontology_versions",
         "schema_migrations",
     }
 
@@ -101,7 +105,10 @@ async def test_migrations_can_baseline_existing_schema(postgres_container):
         await _drop_database(admin_dsn, db_name)
 
     assert [migration.version for migration in baseline.applied] == ["001"]
-    assert [status.version for status in pending_after_baseline if not status.applied] == ["002"]
-    assert [migration.version for migration in result.applied] == ["002"]
-    assert [status.version for status in statuses] == ["001", "002"]
+    assert [status.version for status in pending_after_baseline if not status.applied] == [
+        "002",
+        "003",
+    ]
+    assert [migration.version for migration in result.applied] == ["002", "003"]
+    assert [status.version for status in statuses] == ["001", "002", "003"]
     assert all(status.applied for status in statuses)

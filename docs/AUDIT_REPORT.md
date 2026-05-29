@@ -8,14 +8,14 @@
 
 The repository is a credible prototype, not an enterprise-grade private knowledge platform yet.
 
-The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, graph schema foundation, API/CLI/MCP access surfaces, admin-controlled API mutation endpoints, source-aware corpus API operations, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader MCP contract tests, and operational runbooks.
+The strongest parts are the direct Python implementation, hybrid retrieval design, PostgreSQL plus pgvector consolidation, ontology-governed graph schema foundation, API/CLI/MCP access surfaces, admin-controlled API mutation endpoints, source-aware corpus API operations, explicit DB migrations, OpenAPI reference output, and documented intent. The weakest remaining parts are enterprise controls: source-level access control, retention/deletion policy, CI wiring, broader MCP contract tests, and operational runbooks.
 
 ## Strict Criteria
 
 | Criterion | Status | Evidence | Enterprise Risk |
 | --- | --- | --- | --- |
 | Source-grounded retrieval | Partial | Vector, keyword, graph, RRF, rerank pipeline and R/Q/K eval baselines exist. | Coverage is still narrow outside the initial R/Q/K topics. |
-| KAG graph fidelity | Partial | Entity and relationship tables exist. | Relationship quality, provenance, and traversal precision are not measured. |
+| KAG graph fidelity | Partial | Entity and relationship tables exist, and source-aware ontology mapping rules now govern initial relationship types. | Traversal precision, alias governance, and broad relationship quality metrics are not complete. |
 | Private-data protection | Partial | Redacted logging, privacy-preserving audit events, and API admin mutation guards exist. | Source ACLs, retention/deletion policy, and tenant isolation are not complete. |
 | Reproducibility | Partial | Docker, CLI, migration commands, and install docs exist. | Docker bootstrap still uses `schema.sql`; broader rollback, backup, restore, and CI migration gates are not complete. |
 | Evaluation governance | Partial | Retrieval and generated-answer eval reports exist for R/Q/K topics. | Eval gates are not wired to CI and coverage beyond R/Q/K remains limited. |
@@ -29,6 +29,9 @@ The strongest parts are the direct Python implementation, hybrid retrieval desig
 - `config/default.yaml` sets `BAAI/bge-large-en-v1.5`, `dims: 1024`, and spec chunking as `recursive` with `chunk_size: 1024`.
 - `src/rag_ocpp/storage/schema.sql` declares `embedding VECTOR(1024)`.
 - `src/rag_ocpp/storage/migrations.py` and `src/rag_ocpp/storage/migrations/` provide explicit SQL migrations tracked in `schema_migrations`, including legacy repair for missing `audit_events`.
+- `src/rag_ocpp/ontology/` defines the `ocpp21-ed2-v1` lightweight ontology seed and storage adapter for semantic classes, relation types, evidence/source catalogs, and mapping rules.
+- `src/rag_ocpp/corpus/indexer.py` records ontology version, relation, mapping rule, evidence layer, source type, confidence, stable key, and corpus record ID on ontology-driven graph relationship properties.
+- `tests/test_ontology/test_store.py` covers ontology seed loading, relationship validation, and corpus indexer ontology provenance.
 - `docs/db_migrations.md` documents fresh DB migration setup and legacy `schema.sql` baseline adoption.
 - `docs/ingest.md` describes SDPM chunking, 512-token chunks, 64 overlap, BGE-base, GPU batch 256, and 768-dimensional memory estimates.
 - `docs/dev_journey.md` describes BGE-base 768-dimensional architecture and SDPM 512/64 chunking.
@@ -67,9 +70,9 @@ R/Q/K retrieval quality and generated-answer baselines exist, but they focus on 
 **Severity:** High
 **Confidence:** Medium
 
-Keyword/entity fallback SQL paths have been parameterized, but enterprise private-knowledge systems must still treat CLI, API, and MCP inputs as untrusted across all access surfaces.
+Keyword/entity fallback SQL paths have been parameterized, and graph relationship types can now be validated against the active ontology catalog. Enterprise private-knowledge systems must still treat CLI, API, and MCP inputs as untrusted across all access surfaces.
 
-**Required improvement:** Add shared API/CLI/MCP validation, broaden hostile-input tests, validate relation types against an allowlist, and clamp numeric bounds.
+**Required improvement:** Add shared API/CLI/MCP validation, broaden hostile-input tests, expose ontology validation consistently across graph writers, and clamp numeric bounds.
 
 ### 4. Private Knowledge Controls Are Missing
 
@@ -115,7 +118,7 @@ MCP docs say `top_k` defaults to 5 and maxes at 20, while server startup initial
 4. **Expand the eval gate.** Extend curated e-mobility query sets with expected chunks, entities, protocols, and citation requirements. Track Recall@5/10, MRR, NDCG, graph contribution, latency, and hallucination checks.
 5. **Add privacy controls.** Define data classes, source ACLs, secret handling, redacted logging, prompt/context retention, deletion, and audit events.
 6. **Make ingestion production-grade.** Add idempotent job records, chunk provenance, checksum manifests, failed-page capture, reprocessing controls, and source versioning.
-7. **Improve KAG quality.** Add relationship provenance, confidence calibration, entity alias governance, cross-protocol mapping review, and traversal explainability.
+7. **Improve KAG quality.** Extend ontology-driven relationship provenance into retrieval explainability, add confidence calibration, entity alias governance, cross-protocol mapping review, and traversal-quality metrics.
 8. **Improve answer trust.** Require citations, separate retrieved evidence from generated synthesis, include abstention behavior, and add answer faithfulness evaluation.
 9. **Optimize serving.** Keep models warm in API/MCP process, measure cold/warm latency separately, tune reranking, and add cache boundaries that respect private-data controls.
 10. **Prepare enterprise operation.** Add backup/restore, index rebuild, model upgrade, credential rotation, incident response, and release checklists.

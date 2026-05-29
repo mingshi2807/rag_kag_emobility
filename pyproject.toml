@@ -71,3 +71,4 @@ rag-mcp = "rag_ocpp.mcp.server:main_cli"
 
 [tool.setuptools.package-data]
 "rag_ocpp.storage" = ["schema.sql", "migrations/*.sql"]
+"rag_ocpp.ontology" = ["*.yaml"]

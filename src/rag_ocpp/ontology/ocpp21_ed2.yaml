@@ -1,0 +1,161 @@
+version: ocpp21-ed2-v1
+protocol_id: 1
+status: active
+description: >
+  Lightweight source-aware ontology for OCPP 2.1 Edition 2 evidence linking.
+
+evidence_layers:
+  - name: spec
+    description: Normative and explanatory Part 2 specification evidence.
+  - name: device_model
+    description: Device Model CSV/XLSX component and variable evidence.
+  - name: schema
+    description: JSON schema request/response and field validation evidence.
+
+source_types:
+  - name: spec_pdf
+    evidence_layer: spec
+    description: OCPP 2.1 Ed2 Part 2 specification PDF.
+  - name: device_model_table
+    evidence_layer: device_model
+    description: Device Model component and variable table.
+  - name: appendix_csv
+    evidence_layer: device_model
+    description: Appendix CSV/XLSX protocol data.
+  - name: json_schema
+    evidence_layer: schema
+    description: OCPP JSON schema artifact.
+
+entity_classes:
+  - name: source_document
+    label: Source Document
+    description: Private source artifact used as an evidence root.
+  - name: spec_section
+    label: Specification Section
+    description: Section or subsection extracted from the Part 2 PDF.
+  - name: functional_block
+    label: Functional Block
+    description: OCPP functional area such as Smart Charging, V2X, or DER.
+  - name: message
+    label: Message
+    description: OCPP action/message family.
+  - name: request
+    label: Request
+    parent_name: message
+    description: OCPP request payload.
+  - name: response
+    label: Response
+    parent_name: message
+    description: OCPP response payload.
+  - name: field
+    label: Schema Field
+    description: JSON schema field or nested schema property.
+  - name: component
+    label: Device Model Component
+    description: Device Model component.
+  - name: variable
+    label: Device Model Variable
+    description: Device Model variable.
+  - name: requirement
+    label: Requirement
+    description: Normative requirement or conformance-relevant rule.
+  - name: schema
+    label: Schema
+    description: JSON schema object or source schema definition.
+
+relation_types:
+  - name: spec_defines_entity
+    label: Spec Defines Entity
+    source_class: source_document
+    target_class: spec_section
+    description: A specification source artifact defines an extracted entity.
+  - name: dm_defines_entity
+    label: Device Model Defines Entity
+    source_class: source_document
+    target_class: variable
+    description: A Device Model source artifact defines an extracted entity.
+  - name: schema_defines_entity
+    label: Schema Defines Entity
+    source_class: source_document
+    target_class: field
+    description: A JSON schema source artifact defines an extracted entity.
+  - name: component_has_variable
+    label: Component Has Variable
+    source_class: component
+    target_class: variable
+    description: A Device Model component exposes a variable.
+  - name: message_has_field
+    label: Message Has Field
+    source_class: message
+    target_class: field
+    description: A JSON schema message payload contains a top-level field.
+  - name: schema_validates_message
+    label: Schema Validates Message
+    source_class: schema
+    target_class: message
+    description: A schema artifact validates a message payload.
+  - name: field_uses_datatype
+    label: Field Uses Datatype
+    source_class: field
+    target_class: schema
+    description: A schema field is typed by a datatype, enum, or object definition.
+  - name: requirement_constrains_entity
+    label: Requirement Constrains Entity
+    source_class: requirement
+    target_class: message
+    description: A requirement constrains an implementation entity.
+  - name: section_describes_feature
+    label: Section Describes Feature
+    source_class: spec_section
+    target_class: functional_block
+    description: A specification section describes a functional block or feature.
+  - name: protocol_equivalent_to
+    label: Protocol Equivalent To
+    source_class: source_document
+    target_class: source_document
+    is_symmetric: true
+    description: Future cross-protocol equivalence relation.
+
+mapping_rules:
+  - name: source_spec_records
+    relation_type: spec_defines_entity
+    evidence_layer: spec
+    source_type: spec_pdf
+    record_type_pattern: "*"
+    confidence: 1.0
+    description: Link Part 2 spec source artifacts to extracted spec entities.
+  - name: source_dm_records
+    relation_type: dm_defines_entity
+    evidence_layer: device_model
+    source_type: device_model_table
+    record_type_pattern: "dm*"
+    confidence: 1.0
+    description: Link Device Model artifacts to extracted DM entities.
+  - name: source_appendix_records
+    relation_type: dm_defines_entity
+    evidence_layer: device_model
+    source_type: appendix_csv
+    record_type_pattern: "*"
+    confidence: 1.0
+    description: Link appendix CSV/XLSX artifacts to extracted DM entities.
+  - name: source_schema_records
+    relation_type: schema_defines_entity
+    evidence_layer: schema
+    source_type: json_schema
+    record_type_pattern: "schema*"
+    confidence: 1.0
+    description: Link JSON schema artifacts to extracted schema entities.
+  - name: schema_top_level_field
+    relation_type: message_has_field
+    evidence_layer: schema
+    source_type: json_schema
+    record_type_pattern: "schema_field"
+    confidence: 0.95
+    description: Link a message entity to a top-level JSON schema field.
+  - name: dm_component_variable
+    relation_type: component_has_variable
+    evidence_layer: device_model
+    source_type: device_model_table
+    record_type_pattern: "dm_component_variable"
+    confidence: 0.98
+    description: Link a Device Model component to its variable.
