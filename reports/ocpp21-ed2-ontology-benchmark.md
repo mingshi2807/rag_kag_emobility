@@ -53,6 +53,42 @@ HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80 \
 | Distinct graph relationship types | 4 | 4 | 0 |
 | Existing relationships with ontology provenance | 0 | 0 | 0 |
 
+## Relink Benchmark
+
+The first benchmark only loaded the ontology catalog. The next concrete
+improvement made no-embed graph relinking safe by preserving existing embeddings
+on chunk upsert and merging ontology provenance into existing relationship
+properties.
+
+Command:
+
+```bash
+.venv/bin/rag index-corpus --no-embed
+HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80 \
+  --output reports/ocpp21-ed2-rqk-quality-ontology-relinked.md
+```
+
+| Metric | Before relink | After ontology relink | Delta |
+| --- | ---: | ---: | ---: |
+| Embedded chunks | 4884 | 4884 | 0 |
+| Pending chunks | 1 | 1 | 0 |
+| Graph relationships | 4270 | 4270 | 0 |
+| Relationships with ontology provenance | 0 | 4270 | +4270 |
+| Provenance coverage | 0.0% | 100.0% | +100.0 pp |
+| Retrieval cases passed | 12/12 | 12/12 | 0 |
+| Retrieval score | 0.976 | 0.976 | 0.000 |
+| Total measured latency | 166080 ms | 167795 ms | +1715 ms |
+| Average latency per case | 13840 ms | 13983 ms | +143 ms |
+
+Ontology provenance by relationship type after relink:
+
+| Relation type | Count | With ontology provenance |
+| --- | ---: | ---: |
+| `component_has_variable` | 414 | 414 |
+| `dm_defines_entity` | 987 | 987 |
+| `schema_defines_entity` | 2278 | 2278 |
+| `spec_defines_entity` | 591 | 591 |
+
 ## Interpretation
 
 The ontology layer did not regress retrieval quality. The 12-case R/Q/K suite
@@ -60,13 +96,11 @@ still passes with the same score, and the small latency difference is runtime
 noise from model/reranker execution rather than an ontology traversal cost.
 Current retrieval does not consult the ontology catalog yet.
 
-The main improvement is governance, not ranking: the database now has an active
+The first improvement is governance, not ranking: the database now has an active
 OCPP ontology catalog, allowed relation types, source/evidence catalogs, mapping
 rules, and graph write-time validation support.
 
-Existing graph relationships were created before ontology-aware indexing, so
-they do not yet contain ontology provenance properties. New or reindexed graph
-relationships created by `CorpusIndexer` will record:
+After ontology relinking, every existing graph relationship now records:
 
 - `ontology_version`
 - `ontology_relation`
@@ -81,18 +115,15 @@ relationships created by `CorpusIndexer` will record:
 
 Status: PASS.
 
-Introducing the ontology catalog is safe for the current retrieval quality
-baseline and adds enterprise semantic governance. The next measurable gain will
-come from an ontology-aware reindex plus retrieval explainability that exposes
-why spec, Device Model, and schema evidence are semantically connected.
+Introducing the ontology catalog and relinking the graph is safe for the current
+retrieval quality baseline and adds enterprise semantic governance. The concrete
+improvement is 100% ontology provenance coverage across existing graph
+relationships without losing embeddings.
 
 ## Next Benchmark
 
-Do not run `rag index-corpus --no-embed` on the production corpus because the
-current chunk upsert path can overwrite embeddings with `NULL`. For the next
-benchmark, either:
+The next benchmark should make retrieval consume ontology provenance directly:
 
-- fix chunk upsert so no-embed reindex preserves existing embeddings, then run an
-  ontology-aware graph relink benchmark; or
-- run full `rag index-corpus` with embeddings and compare ontology provenance
-  coverage, graph traversal contribution, and R/Q/K quality again.
+- expose relation provenance in evidence packs;
+- add ontology-aware graph traversal explanations;
+- compare graph contribution and answer trust before/after explainability.

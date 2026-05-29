@@ -58,6 +58,48 @@ async def test_graph_validation_rejects_unknown_relation(graph_store, pool):
         raise AssertionError("unknown ontology relation was accepted")
 
 
+async def test_relationship_upsert_merges_ontology_properties(graph_store, pool):
+    await OntologyStore(pool).load_seed()
+    source = await graph_store.upsert_entity(
+        protocol_id=1,
+        type_id=3,
+        name="ChargingStation",
+    )
+    target = await graph_store.upsert_entity(
+        protocol_id=1,
+        type_id=4,
+        name="HeartbeatInterval",
+    )
+
+    relationship_id = await graph_store.upsert_relationship(
+        source_id=source,
+        target_id=target,
+        rel_type="component_has_variable",
+        properties={"legacy": True},
+        validate_ontology=True,
+    )
+    updated_id = await graph_store.upsert_relationship(
+        source_id=source,
+        target_id=target,
+        rel_type="component_has_variable",
+        properties={
+            "ontology_version": "ocpp21-ed2-v1",
+            "mapping_rule": "dm_component_variable",
+        },
+        validate_ontology=True,
+    )
+    rels = await graph_store.get_relationships(source, direction="outgoing")
+
+    assert updated_id == relationship_id
+    assert len(rels) == 1
+    props = rels[0].properties
+    if isinstance(props, str):
+        props = json.loads(props)
+    assert props["legacy"] is True
+    assert props["ontology_version"] == "ocpp21-ed2-v1"
+    assert props["mapping_rule"] == "dm_component_variable"
+
+
 async def test_corpus_indexer_adds_ontology_provenance(pool):
     await OntologyStore(pool).load_seed()
     source_id = uuid.uuid4()

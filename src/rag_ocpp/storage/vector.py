@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
 import asyncpg
-
-
-import re
 
 
 def _vec(embedding: list[float] | None) -> str | None:
@@ -188,7 +186,7 @@ class VectorStore:
                 ON CONFLICT (document_id, chunk_index) DO UPDATE SET
                     content = EXCLUDED.content,
                     content_hash = EXCLUDED.content_hash,
-                    embedding = EXCLUDED.embedding,
+                    embedding = COALESCE(EXCLUDED.embedding, chunks.embedding),
                     section_title = EXCLUDED.section_title,
                     token_count = EXCLUDED.token_count,
                     metadata = EXCLUDED.metadata
@@ -287,7 +285,7 @@ class VectorStore:
         async with self._pool.acquire() as conn:
             await conn.execute(f"SET LOCAL hnsw.ef_search = {int(ef_search)}")
             rows = await conn.fetch(
-                f"""SELECT c.id, c.document_id, c.chunk_index, c.content,
+                """SELECT c.id, c.document_id, c.chunk_index, c.content,
                        c.section_title, c.page_start, c.page_end,
                        1.0 - (c.embedding <=> $1) AS similarity,
                        c.metadata
@@ -346,7 +344,8 @@ class VectorStore:
 
         if protocol_id is not None:
             clauses.append(
-                f"c.document_id IN (SELECT id FROM documents WHERE protocol_id = ${len(params) + 1})"
+                "c.document_id IN "
+                f"(SELECT id FROM documents WHERE protocol_id = ${len(params) + 1})"
             )
             params.append(protocol_id)
 
@@ -403,7 +402,8 @@ class VectorStore:
         if protocol_id is not None:
             ilike_params.append(protocol_id)
             ilike_filters.append(
-                f"c.document_id IN (SELECT id FROM documents WHERE protocol_id = ${len(ilike_params)})"
+                "c.document_id IN "
+                f"(SELECT id FROM documents WHERE protocol_id = ${len(ilike_params)})"
             )
         if doc_type is not None:
             ilike_params.append(doc_type)

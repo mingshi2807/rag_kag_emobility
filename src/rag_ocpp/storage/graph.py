@@ -291,30 +291,22 @@ class GraphStore:
         validate_ontology: bool = False,
         protocol_id: int = 1,
     ) -> UUID:
-        """Create a relationship edge. No-op if (source, target, type) already exists."""
+        """Create or update a relationship edge."""
         if validate_ontology:
             await self._validate_relation_type(rel_type, protocol_id=protocol_id)
         row = await self._pool.fetchrow(
             """
             INSERT INTO relationships (source_id, target_id, rel_type, properties)
             VALUES ($1, $2, $3, $4)
-            ON CONFLICT (source_id, target_id, rel_type) DO NOTHING
+            ON CONFLICT (source_id, target_id, rel_type) DO UPDATE SET
+                properties = COALESCE(relationships.properties, '{}'::jsonb)
+                             || COALESCE(EXCLUDED.properties, '{}'::jsonb)
             RETURNING id
             """,
             source_id, target_id, rel_type, _json(properties),
         )
-        if row is not None:
-            return row["id"]
-        # Already exists — fetch existing
-        existing = await self._pool.fetchrow(
-            """
-            SELECT id FROM relationships
-            WHERE source_id = $1 AND target_id = $2 AND rel_type = $3
-            """,
-            source_id, target_id, rel_type,
-        )
-        assert existing is not None
-        return existing["id"]
+        assert row is not None
+        return row["id"]
 
     async def _validate_relation_type(self, rel_type: str, *, protocol_id: int) -> None:
         """Validate a relationship type when the ontology catalog is installed."""

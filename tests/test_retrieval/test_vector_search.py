@@ -72,6 +72,47 @@ class TestVectorSearch:
         await vector_store.update_embeddings([(chunk.id, emb)])
         assert len(await vector_store.get_pending_chunks(10)) == 0
 
+    async def test_no_embed_upsert_preserves_existing_embedding(self, vector_store):
+        doc_id = await vector_store.insert_document(
+            protocol_id=1,
+            source_path="t.pdf",
+            doc_type="spec",
+            title="T",
+            page_count=1,
+            raw_bytes=100,
+        )
+        emb = _normalized_embedding(seed=3)
+        chunk_id = uuid.uuid4()
+        await vector_store.insert_chunks([
+            ChunkInsert(
+                id=chunk_id,
+                document_id=doc_id,
+                chunk_index=0,
+                content="Original chunk",
+                content_hash="original",
+                embedding=emb,
+                strategy="corpus_record",
+            )
+        ])
+
+        await vector_store.insert_chunks([
+            ChunkInsert(
+                id=chunk_id,
+                document_id=doc_id,
+                chunk_index=0,
+                content="Relinked chunk without embedding",
+                content_hash="relinked",
+                embedding=None,
+                strategy="corpus_record",
+            )
+        ])
+
+        assert len(await vector_store.get_pending_chunks(10)) == 0
+        results = await vector_store.vector_search(emb, top_k=5)
+        assert len(results) == 1
+        assert results[0].content == "Relinked chunk without embedding"
+        assert results[0].similarity > 0.99
+
     async def test_delete(self, vector_store):
         doc_id = await vector_store.insert_document(
             protocol_id=1,
