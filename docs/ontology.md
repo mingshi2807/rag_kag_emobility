@@ -59,6 +59,17 @@ MCP `search_ocpp_knowledge`, `get_ocpp_evidence_pack`, and
 a spec, Device Model, or schema chunk is semantically connected to another OCPP
 entity.
 
+Graph retrieval also consumes the ontology catalog:
+
+- Traversal uses active ontology relation types when the catalog is loaded.
+- Non-ontology relationship strings are ignored by ontology-aware traversal.
+- Graph hits with ontology provenance receive a small deterministic score boost.
+- Graph-hit metadata records semantic-link count, ontology versions, relation
+  names, and mapping rules.
+
+This is intentionally conservative. Ontology provenance can change graph hit
+ordering, but it does not override vector/keyword/reranker evidence by itself.
+
 ## Current OCPP Relations
 
 The first seed is `ocpp21-ed2-v1` and includes these active graph relations:

@@ -1,8 +1,8 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, ontology provenance in API/MCP evidence packs, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
-**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus ontology-governed graph relation semantics, agent-facing MCP tools with semantic-link provenance, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, ontology-aware graph retrieval, ontology provenance in API/MCP evidence packs, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus ontology-governed graph relation semantics, ontology-aware traversal/scoring, agent-facing MCP tools with semantic-link provenance, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
 
@@ -32,6 +32,7 @@ Query -> vector + keyword + graph retrieval
 - `rag ontology-load`, `rag ontology-load --dry-run`, and `rag ontology-status` expose ontology seed loading and status checks through the CLI.
 - `src/rag_ocpp/corpus/indexer.py` resolves source-definition, Device Model, and JSON schema graph edges through ontology mapping rules and records ontology provenance on relationship properties.
 - `src/rag_ocpp/storage/graph.py` exposes chunk-level semantic links so API and MCP evidence can explain retrieved chunk/entity relationships with ontology version, mapping rule, evidence layer, source type, and confidence.
+- `src/rag_ocpp/retrieval/graph_search.py` now uses active ontology relation types for graph traversal and applies a bounded ontology-provenance score boost to graph hits.
 - `src/rag_ocpp/corpus/` normalizes source-aware evidence records from the OCPP 2.1 Ed2 Part 2 PDF, Device Model CSV/XLSX files, and JSON schemas.
 - `src/rag_ocpp/cli/corpus.py` adds `rag corpus`, defaulting to dry-run preview; use `--store` to write source/corpus records.
 - `rag index-corpus` indexes stored corpus records into `chunks`, embeddings, graph entities, chunk/entity links, and source-definition relationships.
@@ -42,6 +43,7 @@ Query -> vector + keyword + graph retrieval
 - `.codex/skills/` contains repo-local OCPP RAG/KAG workflow skills for improvement, expert review, query eval, implementation guides, and smoke testing.
 - `docs/query_quality_eval.md` documents `rag eval-quality` and `rag eval-answers` gates for Section R DER, Section Q V2X, and Section K smart charging.
 - `reports/ocpp21-ed2-rqk-quality-baseline.md` records a 12-case retrieval baseline: `12/12` passed, score `0.976`.
+- `reports/ocpp21-ed2-rqk-quality-ontology-aware-retrieval.md` records the ontology-aware graph retrieval gate: `12/12` passed, score `0.976`.
 - `reports/ocpp21-ed2-rqk-golden-answers.md` records a 3-case generated Markdown answer baseline: `3/3` passed, score `1.000`.
 - `reports/golden_answers/` stores the generated DER, V2X, and Smart Charging Markdown answers that can be rescored without another LLM call.
 - `reports/ocpp21-ed2-rqk-golden-answers-codex-only.md` records a Codex-authored, MCP-evidence-assisted 3-case generated-answer benchmark: `3/3` passed, score `1.000`.
@@ -74,6 +76,7 @@ Query -> vector + keyword + graph retrieval
 5. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
 6. Add API/MCP read-only ontology inspection endpoints once the ontology model stabilizes.
 7. Add API/CLI/MCP contract parity tests for corpus indexing and generated-answer Markdown behavior.
+8. Add ontology traversal metrics to eval reports, including graph-hit boost counts and semantic-link coverage per query.
 
 ## Verification Commands
 
@@ -87,6 +90,7 @@ rag eval data/eval/queries.jsonl --top-k 10
 .venv/bin/pytest tests/test_storage/test_audit.py -q
 .venv/bin/pytest tests/test_storage/test_migrations.py -q
 .venv/bin/pytest tests/test_ontology/test_store.py -q
+.venv/bin/pytest tests/test_retrieval/test_graph_search.py -q
 .venv/bin/pytest tests/test_api -q
 .venv/bin/pytest tests/test_mcp -q
 .venv/bin/rag migrate-status

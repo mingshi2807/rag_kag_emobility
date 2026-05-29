@@ -89,6 +89,7 @@ class EntityChunkResult:
     entity_name: str
     entity_type: str
     confidence: float
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass
@@ -412,6 +413,30 @@ class GraphStore:
             for r in rows
         ]
 
+    async def get_active_ontology_relation_types(
+        self,
+        *,
+        protocol_id: int = 1,
+    ) -> list[str]:
+        """Return active ontology relation type names when the catalog exists."""
+        catalog = await self._pool.fetchval("SELECT to_regclass('ontology_relation_types')")
+        if catalog is None:
+            return []
+        rows = await self._pool.fetch(
+            """
+            SELECT rt.name
+            FROM ontology_relation_types rt
+            JOIN ontology_versions ov
+              ON ov.protocol_id = rt.protocol_id
+             AND ov.version = rt.ontology_version
+             AND ov.status = 'active'
+            WHERE rt.protocol_id = $1
+            ORDER BY rt.name
+            """,
+            protocol_id,
+        )
+        return [row["name"] for row in rows]
+
     async def get_semantic_links_for_chunks(
         self,
         chunk_ids: list[UUID],
@@ -519,7 +544,7 @@ class GraphStore:
         rows = await self._pool.fetch(
             """
             SELECT c.id, c.document_id, c.chunk_index, c.content,
-                   c.section_title, c.page_start, c.page_end,
+                   c.section_title, c.page_start, c.page_end, c.metadata,
                    e.name AS entity_name,
                    et.name AS entity_type,
                    ce.confidence
@@ -545,6 +570,7 @@ class GraphStore:
                 entity_name=r["entity_name"],
                 entity_type=r["entity_type"],
                 confidence=float(r["confidence"]),
+                metadata=_json_dict(r["metadata"]),
             )
             for r in rows
         ]

@@ -143,6 +143,49 @@ This does not change ranking. The concrete improvement is explainability:
 coding agents and API clients can now see which ontology rule connected a
 retrieved chunk to related OCPP entities.
 
+## Ontology-Aware Retrieval Benchmark
+
+The next improvement makes graph retrieval consume ontology provenance directly.
+Graph retrieval now:
+
+- uses active ontology relation types for traversal when the ontology catalog is
+  loaded;
+- ignores non-ontology relation strings during ontology-aware traversal;
+- applies a bounded score boost to graph hits with ontology-provenance semantic
+  links;
+- writes graph-hit metadata with semantic-link count, ontology versions,
+  relation names, and mapping rules.
+
+Validation:
+
+```bash
+.venv/bin/pytest tests/test_retrieval/test_graph_search.py tests/test_ontology/test_store.py tests/test_api/test_query_routes.py tests/test_mcp/test_server_formatting.py -q
+HF_HOME=./models .venv/bin/rag eval-quality --top-k 12 --fail-under 0.80 \
+  --output reports/ocpp21-ed2-rqk-quality-ontology-aware-retrieval.md
+```
+
+Results:
+
+- Targeted tests: `11 passed`
+- R/Q/K quality gate: `12/12` passed
+- Retrieval score: `0.976`
+- Fail-under: `0.800`
+- Status: `PASS`
+
+| Metric | Before ontology-aware retrieval | After ontology-aware retrieval | Delta |
+| --- | ---: | ---: | ---: |
+| Retrieval cases passed | 12/12 | 12/12 | 0 |
+| Retrieval score | 0.976 | 0.976 | 0.000 |
+| Graph traversal relation filter | none | active ontology relation types | improved control |
+| Graph semantic-link score boost | no | yes | improved ranking signal |
+| Graph retrieval unit tests | 0 | 2 | +2 |
+
+Observed top-evidence changes stayed within the passing envelope. Fusion cases
+still include the required spec, Device Model, and schema layers. The concrete
+improvement is controlled graph behavior: private/non-ontology graph edges no
+longer participate in ontology-aware traversal, and ontology-provenance graph
+hits can outrank plain graph hits.
+
 ## Conclusion
 
 Status: PASS.
@@ -151,13 +194,14 @@ Introducing the ontology catalog and relinking the graph is safe for the current
 retrieval quality baseline and adds enterprise semantic governance. The concrete
 improvement is 100% ontology provenance coverage across existing graph
 relationships without losing embeddings, plus source-aware semantic-link
-explanations in API and MCP evidence outputs.
+explanations in API and MCP evidence outputs, plus ontology-aware graph
+traversal and graph-hit scoring.
 
 ## Next Benchmark
 
 The next benchmark should make retrieval consume ontology provenance directly:
 
-- add ontology-aware graph traversal/rerank features;
-- measure whether semantic-link traversal improves top evidence anchors;
-- compare graph contribution and answer trust before/after ontology-aware
-  retrieval scoring.
+- measure graph-hit boost counts per query;
+- add semantic-link coverage and traversal depth metrics to `rag eval-quality`;
+- compare answer trust before/after ontology-aware retrieval metadata is used by
+  the generation prompt.
