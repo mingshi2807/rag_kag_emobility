@@ -6,6 +6,17 @@
 - Fail-under: `0.800`
 - Status: `PASS`
 
+## Ontology Metrics
+
+- Graph candidate chunks: `30`
+- Graph candidate chunks with semantic links: `30`
+- Graph candidate semantic links: `110`
+- Final graph chunks: `0`
+- Final graph chunks with semantic links: `0`
+- Max traversal depth: `2`
+- Ontology relation types: `component_has_variable, dm_defines_entity, schema_defines_entity, spec_defines_entity`
+- Ontology mapping rules: `dm_component_variable, source_appendix_records, source_dm_records, source_schema_records, source_spec_records`
+
 ## Cases
 
 ### R-SPEC-DER-CONTROL - PASS
@@ -16,9 +27,10 @@
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.333`
-- Latency: `14570ms`
+- Latency: `14383ms`
 - Strategy: `{'vector': 7, 'keyword': 5}`
 - Query: In OCPP 2.1 Ed2 Section R, what are the DER control objectives, requirements, and implementation responsibilities?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `curve`
 
 Evidence layer coverage:
@@ -39,9 +51,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.333`
-- Latency: `6475ms`
+- Latency: `6445ms`
 - Strategy: `{'vector': 7, 'keyword': 5}`
 - Query: Which Device Model components and variables are relevant for OCPP 2.1 Ed2 DER control implementation?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `required`
 
 Evidence layer coverage:
@@ -62,9 +75,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `11493ms`
+- Latency: `11465ms`
 - Strategy: `{'vector': 8, 'keyword': 4}`
 - Query: Which OCPP 2.1 JSON schemas define DER control request and response payload constraints?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `required, properties, enum`
 
 Evidence layer coverage:
@@ -85,9 +99,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `28858ms`
+- Latency: `28668ms`
 - Strategy: `{'vector': 5, 'keyword': 7}`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 DER control using Part 2 spec behavior, Device Model components and variables, and JSON schema validation.
+- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=39, final_graph_chunks=0, max_depth=2`
 - Matched optional terms: `Response, Variable, requirements, validation`
 
 Evidence layer coverage:
@@ -110,9 +125,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `14591ms`
+- Latency: `14448ms`
 - Strategy: `{'vector': 12}`
 - Query: In OCPP 2.1 Ed2 Section Q, what V2X energy services behavior must a charging station backend implement?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `bidirectional, EV, grid`
 
 Evidence layer coverage:
@@ -133,9 +149,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.667`
-- Latency: `3897ms`
+- Latency: `3833ms`
 - Strategy: `{'vector': 9, 'keyword': 3}`
 - Query: Which Device Model components and variables support V2X energy services in OCPP 2.1 Ed2?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `EVSE, required`
 
 Evidence layer coverage:
@@ -156,9 +173,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.667`
-- Latency: `6128ms`
+- Latency: `6083ms`
 - Strategy: `{'vector': 10, 'keyword': 2}`
 - Query: Which OCPP 2.1 JSON schemas and payload fields are relevant to V2X energy services?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `required, properties`
 
 Evidence layer coverage:
@@ -179,9 +197,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.750`
-- Latency: `29283ms`
+- Latency: `29018ms`
 - Strategy: `{'keyword': 8, 'vector': 4}`
 - Query: Build implementation guidance for OCPP 2.1 Ed2 V2X energy services using spec rules, Device Model configuration, and JSON schemas.
+- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=32, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `services, Variable, Request`
 
 Evidence layer coverage:
@@ -204,9 +223,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `14744ms`
+- Latency: `14562ms`
 - Strategy: `{'vector': 11, 'keyword': 1}`
 - Query: In OCPP 2.1 Ed2 Section K, what are the smart charging purposes, profiles, limits, and implementation responsibilities?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `ChargingProfile, schedule, transaction`
 
 Evidence layer coverage:
@@ -227,9 +247,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.667`
-- Latency: `4920ms`
+- Latency: `4830ms`
 - Strategy: `{'vector': 6, 'keyword': 6}`
 - Query: Which Device Model components and variables configure smart charging in OCPP 2.1 Ed2?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `ChargingStation, required`
 
 Evidence layer coverage:
@@ -250,9 +271,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `4799ms`
+- Latency: `4723ms`
 - Strategy: `{'vector': 5, 'keyword': 7}`
 - Query: Which JSON schemas define OCPP 2.1 smart charging messages such as SetChargingProfile and charging schedule payloads?
+- Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
 - Matched optional terms: `chargingSchedule, required, properties`
 
 Evidence layer coverage:
@@ -273,9 +295,10 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.750`
-- Latency: `29382ms`
+- Latency: `28742ms`
 - Strategy: `{'vector': 5, 'keyword': 7}`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 smart charging using Section K spec behavior, Device Model variables, and JSON schema validation.
+- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=39, final_graph_chunks=0, max_depth=2`
 - Matched optional terms: `Variable, SetChargingProfile, limit`
 
 Evidence layer coverage:

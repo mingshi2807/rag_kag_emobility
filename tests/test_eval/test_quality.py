@@ -78,6 +78,46 @@ def test_score_case_passes_with_required_coverage():
     assert result.score == 1.0
 
 
+def test_score_case_reports_ontology_metrics_for_graph_chunks():
+    case = QualityCase(
+        case_id="X",
+        topic="Section X",
+        mode="fusion",
+        query="demo",
+        required_layers=("device_model",),
+        required_terms=("Component",),
+    )
+
+    result = score_case(
+        case,
+        [
+            _chunk(
+                "Component Variable",
+                layer="device_model",
+                strategy="graph",
+                extra_metadata={
+                    "graph_semantic_links": 2,
+                    "graph_ontology_relations": ["component_has_variable"],
+                    "graph_ontology_rules": ["dm_component_variable"],
+                    "graph_ontology_versions": ["ocpp21-ed2-v1"],
+                    "graph_traversal_depth": 1,
+                },
+            )
+        ],
+    )
+    report = build_report([result], suite="test", top_k=1, fail_under=0.5)
+    markdown = report.to_markdown()
+
+    assert result.ontology_metrics["graph_chunks"] == 1
+    assert result.ontology_metrics["graph_chunks_with_semantic_links"] == 1
+    assert result.ontology_metrics["semantic_links_total"] == 2
+    assert result.ontology_metrics["max_traversal_depth"] == 1
+    assert result.ontology_metrics["ontology_relations"] == ["component_has_variable"]
+    assert report.ontology_metrics["ontology_rules"] == ["dm_component_variable"]
+    assert "## Ontology Metrics" in markdown
+    assert "semantic_links=2" in markdown
+
+
 def test_build_report_fails_if_any_case_fails():
     passed = score_case(
         QualityCase("A", "T", "spec", "q", ("spec",), ("DER",)),
@@ -205,7 +245,15 @@ def _chunk(
     *,
     layer: str,
     section_title: str | None = None,
+    strategy: str = "keyword",
+    extra_metadata: dict | None = None,
 ) -> ScoredChunk:
+    metadata = {
+        "evidence_layer": layer,
+        "source_type": "spec_pdf" if layer == "spec" else "json_schema",
+        "source_path": f"{layer}.txt",
+    }
+    metadata.update(extra_metadata or {})
     return ScoredChunk(
         chunk_id=uuid4(),
         document_id=uuid4(),
@@ -215,10 +263,6 @@ def _chunk(
         page_start=1,
         page_end=1,
         score=1.0,
-        strategy="keyword",
-        metadata={
-            "evidence_layer": layer,
-            "source_type": "spec_pdf" if layer == "spec" else "json_schema",
-            "source_path": f"{layer}.txt",
-        },
+        strategy=strategy,
+        metadata=metadata,
     )

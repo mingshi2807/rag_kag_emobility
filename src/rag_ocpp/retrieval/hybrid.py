@@ -6,6 +6,7 @@ import asyncio
 import re
 import time
 from dataclasses import dataclass
+from typing import Any
 
 import asyncpg
 
@@ -29,6 +30,7 @@ class RetrievalResult:
     chunks: list[ScoredChunk]
     strategy_breakdown: dict[str, int]
     latency_ms: int
+    ontology_metrics: dict[str, Any] | None = None
 
 
 class HybridRetriever:
@@ -205,19 +207,13 @@ class HybridRetriever:
         import logging
         _log = logging.getLogger(__name__)
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        vec = results[0] if not isinstance(results[0], Exception) else []
-        kw = results[1] if not isinstance(results[1], Exception) else []
+        vec = _search_result(results[0])
+        kw = _search_result(results[1])
         extra_start = 2
         extra_end = extra_start + len(extra_weights)
-        extra_sets = [
-            r for r in results[extra_start:extra_end] if not isinstance(r, Exception)
-        ]
+        extra_sets = [_search_result(r) for r in results[extra_start:extra_end]]
         graph_index = extra_end
-        gr = (
-            results[graph_index]
-            if len(results) > graph_index and not isinstance(results[graph_index], Exception)
-            else []
-        )
+        gr = _search_result(results[graph_index]) if len(results) > graph_index else []
         labels = ["vec", "kw"] + [f"dm{i + 1}" for i in range(len(extra_weights))]
         if use_graph:
             labels.append("gr")
@@ -281,6 +277,7 @@ class HybridRetriever:
                 message_terms,
                 self._final_top_k,
             )
+        ontology_metrics = _retrieval_ontology_metrics(gr, final)
 
         breakdown: dict[str, int] = {}
         for c in final:
@@ -290,6 +287,7 @@ class HybridRetriever:
             chunks=final,
             strategy_breakdown=breakdown,
             latency_ms=int((time.monotonic() - t0) * 1000),
+            ontology_metrics=ontology_metrics,
         )
         self._final_top_k = save_k
         return result
@@ -436,19 +434,13 @@ class HybridRetriever:
         import logging
         _log = logging.getLogger(__name__)
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        vec = results[0] if not isinstance(results[0], Exception) else []
-        kw = results[1] if not isinstance(results[1], Exception) else []
+        vec = _search_result(results[0])
+        kw = _search_result(results[1])
         extra_start = 2
         extra_end = extra_start + len(extra_weights)
-        extra_sets = [
-            r for r in results[extra_start:extra_end] if not isinstance(r, Exception)
-        ]
+        extra_sets = [_search_result(r) for r in results[extra_start:extra_end]]
         graph_index = extra_end
-        gr = (
-            results[graph_index]
-            if len(results) > graph_index and not isinstance(results[graph_index], Exception)
-            else []
-        )
+        gr = _search_result(results[graph_index]) if len(results) > graph_index else []
         labels = ["vec", "kw"] + [f"dm{i + 1}" for i in range(len(extra_weights))]
         if use_graph:
             labels.append("gr")
@@ -490,6 +482,7 @@ class HybridRetriever:
                 message_terms,
                 self._final_top_k,
             )
+        ontology_metrics = _retrieval_ontology_metrics(gr, top)
         self._final_top_k = save_k
 
         breakdown: dict[str, int] = {}
@@ -500,6 +493,7 @@ class HybridRetriever:
             chunks=top,
             strategy_breakdown=breakdown,
             latency_ms=int((time.monotonic() - t0) * 1000),
+            ontology_metrics=ontology_metrics,
         )
 
 
@@ -1013,3 +1007,99 @@ def _ensure_message_coverage(
                 break
 
     return output[:top_k]
+
+
+def _search_result(value: object) -> list[ScoredChunk]:
+    if isinstance(value, BaseException):
+        return []
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, ScoredChunk)]
+    return []
+
+
+def _retrieval_ontology_metrics(
+    graph_candidates: list[ScoredChunk],
+    final_chunks: list[ScoredChunk],
+) -> dict[str, Any]:
+    candidate = _graph_chunk_metrics(graph_candidates)
+    final = _graph_chunk_metrics(final_chunks)
+    return {
+        "graph_candidate_chunks": candidate["graph_chunks"],
+        "graph_candidate_chunks_with_semantic_links": candidate[
+            "graph_chunks_with_semantic_links"
+        ],
+        "graph_candidate_semantic_links_total": candidate["semantic_links_total"],
+        "graph_candidate_max_traversal_depth": candidate["max_traversal_depth"],
+        "graph_candidate_ontology_relations": candidate["ontology_relations"],
+        "graph_candidate_ontology_rules": candidate["ontology_rules"],
+        "graph_candidate_ontology_versions": candidate["ontology_versions"],
+        "final_graph_chunks": final["graph_chunks"],
+        "final_graph_chunks_with_semantic_links": final["graph_chunks_with_semantic_links"],
+        "final_semantic_links_total": final["semantic_links_total"],
+        "final_max_traversal_depth": final["max_traversal_depth"],
+        "final_ontology_relations": final["ontology_relations"],
+        "final_ontology_rules": final["ontology_rules"],
+        "final_ontology_versions": final["ontology_versions"],
+    }
+
+
+def _graph_chunk_metrics(chunks: list[ScoredChunk]) -> dict[str, Any]:
+    graph_chunks = [chunk for chunk in chunks if chunk.strategy == "graph"]
+    semantic_link_chunks = [
+        chunk
+        for chunk in graph_chunks
+        if _positive_int((chunk.metadata or {}).get("graph_semantic_links")) > 0
+    ]
+    semantic_links_total = sum(
+        _positive_int((chunk.metadata or {}).get("graph_semantic_links"))
+        for chunk in graph_chunks
+    )
+    depths = [
+        _positive_int((chunk.metadata or {}).get("graph_traversal_depth"))
+        for chunk in graph_chunks
+        if (chunk.metadata or {}).get("graph_traversal_depth") is not None
+    ]
+    return {
+        "graph_chunks": len(graph_chunks),
+        "graph_chunks_with_semantic_links": len(semantic_link_chunks),
+        "semantic_links_total": semantic_links_total,
+        "max_traversal_depth": max(depths, default=0),
+        "ontology_relations": _sorted_metric_values(
+            value
+            for chunk in graph_chunks
+            for value in _list_metric_values(
+                (chunk.metadata or {}).get("graph_ontology_relations")
+            )
+        ),
+        "ontology_rules": _sorted_metric_values(
+            value
+            for chunk in graph_chunks
+            for value in _list_metric_values((chunk.metadata or {}).get("graph_ontology_rules"))
+        ),
+        "ontology_versions": _sorted_metric_values(
+            value
+            for chunk in graph_chunks
+            for value in _list_metric_values(
+                (chunk.metadata or {}).get("graph_ontology_versions")
+            )
+        ),
+    }
+
+
+def _positive_int(value: Any) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _list_metric_values(value: Any) -> list[str]:
+    if isinstance(value, list | tuple | set):
+        return [str(item) for item in value if item is not None and str(item)]
+    if value is None or value == "":
+        return []
+    return [str(value)]
+
+
+def _sorted_metric_values(values: Any) -> list[str]:
+    return sorted(set(_list_metric_values(list(values))))

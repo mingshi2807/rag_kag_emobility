@@ -178,6 +178,9 @@ Results:
 | Retrieval score | 0.976 | 0.976 | 0.000 |
 | Graph traversal relation filter | none | active ontology relation types | improved control |
 | Graph semantic-link score boost | no | yes | improved ranking signal |
+| Eval graph candidate chunks | not reported | 30 | +30 observed |
+| Eval graph candidate semantic links | not reported | 110 | +110 observed |
+| Eval max graph traversal depth | not reported | 2 | +2 observed |
 | Graph retrieval unit tests | 0 | 2 | +2 |
 
 Observed top-evidence changes stayed within the passing envelope. Fusion cases
@@ -185,6 +188,37 @@ still include the required spec, Device Model, and schema layers. The concrete
 improvement is controlled graph behavior: private/non-ontology graph edges no
 longer participate in ontology-aware traversal, and ontology-provenance graph
 hits can outrank plain graph hits.
+
+## Ontology Metrics In Eval Reports
+
+`rag eval-quality` now reports ontology metrics at suite and case level. The
+refreshed 12-case report is:
+
+- `reports/ocpp21-ed2-rqk-quality-ontology-aware-retrieval.md`
+- `12/12` passed
+- Score: `0.976`
+- Graph candidate chunks: `30`
+- Graph candidate chunks with semantic links: `30`
+- Graph candidate semantic links: `110`
+- Final graph chunks: `0`
+- Max traversal depth: `2`
+- Relation types observed: `component_has_variable`, `dm_defines_entity`,
+  `schema_defines_entity`, `spec_defines_entity`
+- Mapping rules observed: `dm_component_variable`, `source_appendix_records`,
+  `source_dm_records`, `source_schema_records`, `source_spec_records`
+
+Focused DER fusion report:
+
+- `reports/ocpp21-ed2-rqk-quality-ontology-metrics-der.md`
+- `1/1` passed
+- Graph candidate chunks: `10`
+- Graph candidate semantic links: `39`
+- Max traversal depth: `2`
+
+Interpretation: ontology-aware graph retrieval is producing governed candidates,
+but current vector/keyword/reranker and source-layer coverage logic still win
+the final top-k for the R/Q/K suite. This is a useful enterprise signal: graph
+candidate contribution is measurable without silently altering answer evidence.
 
 ## Conclusion
 
@@ -199,9 +233,10 @@ traversal and graph-hit scoring.
 
 ## Next Benchmark
 
-The next benchmark should make retrieval consume ontology provenance directly:
+The next benchmark should use these metrics to tune graph promotion:
 
-- measure graph-hit boost counts per query;
-- add semantic-link coverage and traversal depth metrics to `rag eval-quality`;
-- compare answer trust before/after ontology-aware retrieval metadata is used by
-  the generation prompt.
+- compare final top-k quality when one high-confidence ontology graph candidate
+  is promoted in fusion cases;
+- measure whether graph promotion improves source-layer coverage or answer
+  faithfulness;
+- keep the R/Q/K score at or above `0.976`.

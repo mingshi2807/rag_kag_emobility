@@ -73,8 +73,29 @@ Each case checks:
 - Required domain terms are present in retrieved evidence.
 - Optional terms improve the score but do not define the core evidence contract.
 - Top evidence includes chunk IDs, section titles, source type, evidence layer, and source path metadata.
+- Ontology metrics summarize graph candidate chunks, semantic-link coverage,
+  traversal depth, ontology relation types, and mapping rules.
 
 The command exits with status `2` when the suite fails. This is intended for CI and regression gating.
+
+## Ontology Metrics
+
+`eval-quality` reports include candidate-level and final-top-k ontology metrics:
+
+- `Graph candidate chunks`: graph retrieval candidates produced before final
+  fusion/reranking.
+- `Graph candidate chunks with semantic links`: graph candidates backed by
+  ontology-provenance links.
+- `Graph candidate semantic links`: total semantic links across graph
+  candidates.
+- `Final graph chunks`: graph chunks that survived into final top-k evidence.
+- `Max traversal depth`: deepest ontology-aware traversal observed.
+- `Ontology relation types` and `Ontology mapping rules`: governed graph
+  semantics used by graph candidates.
+
+Candidate metrics can be non-zero while final graph chunks are zero. That means
+ontology-aware graph retrieval contributed candidates, but vector/keyword/rerank
+evidence won the final top-k.
 
 ## Golden Answer Evaluation
 

@@ -48,6 +48,7 @@ class QualityCaseResult:
     top_chunks: list[dict[str, Any]] = field(default_factory=list)
     latency_ms: int = 0
     strategy_breakdown: dict[str, int] = field(default_factory=dict)
+    ontology_metrics: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -58,6 +59,7 @@ class QualityReport:
     passed: bool
     score: float
     cases: list[QualityCaseResult]
+    ontology_metrics: dict[str, Any] = field(default_factory=dict)
 
     @property
     def num_cases(self) -> int:
@@ -71,6 +73,23 @@ class QualityReport:
         return json.dumps(asdict(self), indent=2, sort_keys=True)
 
     def to_markdown(self) -> str:
+        om = self.ontology_metrics
+        graph_candidate_chunks = om.get("graph_candidate_chunks", 0)
+        graph_candidate_link_chunks = om.get(
+            "graph_candidate_chunks_with_semantic_links", 0
+        )
+        graph_candidate_links = om.get("graph_candidate_semantic_links_total", 0)
+        final_graph_chunks = om.get("final_graph_chunks", om.get("graph_chunks", 0))
+        final_graph_link_chunks = om.get(
+            "final_graph_chunks_with_semantic_links",
+            om.get("graph_chunks_with_semantic_links", 0),
+        )
+        max_depth = om.get(
+            "graph_candidate_max_traversal_depth",
+            om.get("max_traversal_depth", 0),
+        )
+        relations = om.get("graph_candidate_ontology_relations", om.get("ontology_relations", []))
+        rules = om.get("graph_candidate_ontology_rules", om.get("ontology_rules", []))
         lines = [
             f"# OCPP Query Quality Evaluation: {self.suite}",
             "",
@@ -80,10 +99,40 @@ class QualityReport:
             f"- Fail-under: `{self.fail_under:.3f}`",
             f"- Status: `{'PASS' if self.passed else 'FAIL'}`",
             "",
+            "## Ontology Metrics",
+            "",
+            f"- Graph candidate chunks: `{graph_candidate_chunks}`",
+            f"- Graph candidate chunks with semantic links: `{graph_candidate_link_chunks}`",
+            f"- Graph candidate semantic links: `{graph_candidate_links}`",
+            f"- Final graph chunks: `{final_graph_chunks}`",
+            f"- Final graph chunks with semantic links: `{final_graph_link_chunks}`",
+            f"- Max traversal depth: `{max_depth}`",
+            f"- Ontology relation types: `{', '.join(relations) or 'none'}`",
+            f"- Ontology mapping rules: `{', '.join(rules) or 'none'}`",
+            "",
             "## Cases",
             "",
         ]
         for case in self.cases:
+            case_om = case.ontology_metrics
+            case_candidate_chunks = case_om.get(
+                "graph_candidate_chunks", case_om.get("graph_chunks", 0)
+            )
+            case_candidate_link_chunks = case_om.get(
+                "graph_candidate_chunks_with_semantic_links",
+                case_om.get("graph_chunks_with_semantic_links", 0),
+            )
+            case_candidate_links = case_om.get(
+                "graph_candidate_semantic_links_total",
+                case_om.get("semantic_links_total", 0),
+            )
+            case_final_chunks = case_om.get(
+                "final_graph_chunks", case_om.get("graph_chunks", 0)
+            )
+            case_max_depth = case_om.get(
+                "graph_candidate_max_traversal_depth",
+                case_om.get("max_traversal_depth", 0),
+            )
             lines.extend(
                 [
                     f"### {case.case_id} - {'PASS' if case.passed else 'FAIL'}",
@@ -97,6 +146,12 @@ class QualityReport:
                     f"- Latency: `{case.latency_ms}ms`",
                     f"- Strategy: `{case.strategy_breakdown}`",
                     f"- Query: {case.query}",
+                    "- Ontology metrics: "
+                    f"`candidate_graph_chunks={case_candidate_chunks}, "
+                    f"candidate_semantic_link_chunks={case_candidate_link_chunks}, "
+                    f"candidate_semantic_links={case_candidate_links}, "
+                    f"final_graph_chunks={case_final_chunks}, "
+                    f"max_depth={case_max_depth}`",
                 ]
             )
             if case.missing_layers:
@@ -313,8 +368,14 @@ def filter_cases(
     return selected
 
 
-def score_case(case: QualityCase, chunks: list[ScoredChunk], *, latency_ms: int = 0,
-               strategy_breakdown: dict[str, int] | None = None) -> QualityCaseResult:
+def score_case(
+    case: QualityCase,
+    chunks: list[ScoredChunk],
+    *,
+    latency_ms: int = 0,
+    strategy_breakdown: dict[str, int] | None = None,
+    retrieval_ontology_metrics: dict[str, Any] | None = None,
+) -> QualityCaseResult:
     layers = {_layer(chunk) for chunk in chunks}
     missing_layers = [layer for layer in case.required_layers if layer not in layers]
 
@@ -330,6 +391,8 @@ def score_case(case: QualityCase, chunks: list[ScoredChunk], *, latency_ms: int 
     score = (layer_score * 0.45) + (required_term_score * 0.45) + (optional_term_score * 0.10)
     passed = not missing_layers and not missing_terms and score >= case.min_score
 
+    top_chunks = [_chunk_summary(chunk) for chunk in chunks]
+    final_metrics = _ontology_metrics(top_chunks)
     return QualityCaseResult(
         case_id=case.case_id,
         topic=case.topic,
@@ -343,9 +406,13 @@ def score_case(case: QualityCase, chunks: list[ScoredChunk], *, latency_ms: int 
         missing_layers=missing_layers,
         missing_required_terms=missing_terms,
         matched_optional_terms=matched_optional,
-        top_chunks=[_chunk_summary(chunk) for chunk in chunks],
+        top_chunks=top_chunks,
         latency_ms=latency_ms,
         strategy_breakdown=strategy_breakdown or {},
+        ontology_metrics=_merge_retrieval_ontology_metrics(
+            final_metrics,
+            retrieval_ontology_metrics,
+        ),
     )
 
 
@@ -361,6 +428,9 @@ def build_report(
         passed=passed,
         score=score,
         cases=results,
+        ontology_metrics=_aggregate_ontology_metrics(
+            [result.ontology_metrics for result in results]
+        ),
     )
 
 
@@ -413,6 +483,11 @@ def _chunk_summary(chunk: ScoredChunk) -> dict[str, Any]:
         "source_path": metadata.get("source_path"),
         "record_type": metadata.get("record_type"),
         "entity_name": metadata.get("entity_name"),
+        "graph_semantic_links": metadata.get("graph_semantic_links"),
+        "graph_ontology_relations": metadata.get("graph_ontology_relations"),
+        "graph_ontology_rules": metadata.get("graph_ontology_rules"),
+        "graph_ontology_versions": metadata.get("graph_ontology_versions"),
+        "graph_traversal_depth": metadata.get("graph_traversal_depth"),
     }
 
 
@@ -424,3 +499,204 @@ def _layer_coverage(chunks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             continue
         coverage[layer] = chunk
     return coverage
+
+
+def _ontology_metrics(chunks: list[dict[str, Any]]) -> dict[str, Any]:
+    graph_chunks = [chunk for chunk in chunks if chunk.get("strategy") == "graph"]
+    semantic_link_chunks = [
+        chunk for chunk in graph_chunks if _positive_int(chunk.get("graph_semantic_links")) > 0
+    ]
+    semantic_links_total = sum(
+        _positive_int(chunk.get("graph_semantic_links")) for chunk in graph_chunks
+    )
+    depths = [
+        _positive_int(chunk.get("graph_traversal_depth"))
+        for chunk in graph_chunks
+        if chunk.get("graph_traversal_depth") is not None
+    ]
+    return {
+        "graph_chunks": len(graph_chunks),
+        "graph_chunks_with_semantic_links": len(semantic_link_chunks),
+        "semantic_links_total": semantic_links_total,
+        "max_traversal_depth": max(depths, default=0),
+        "ontology_relations": _sorted_values(
+            value
+            for chunk in graph_chunks
+            for value in _list_values(chunk.get("graph_ontology_relations"))
+        ),
+        "ontology_rules": _sorted_values(
+            value
+            for chunk in graph_chunks
+            for value in _list_values(chunk.get("graph_ontology_rules"))
+        ),
+        "ontology_versions": _sorted_values(
+            value
+            for chunk in graph_chunks
+            for value in _list_values(chunk.get("graph_ontology_versions"))
+        ),
+    }
+
+
+def _aggregate_ontology_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "graph_chunks": sum(_positive_int(item.get("graph_chunks")) for item in metrics),
+        "graph_chunks_with_semantic_links": sum(
+            _positive_int(item.get("graph_chunks_with_semantic_links")) for item in metrics
+        ),
+        "semantic_links_total": sum(
+            _positive_int(item.get("semantic_links_total")) for item in metrics
+        ),
+        "max_traversal_depth": max(
+            (_positive_int(item.get("max_traversal_depth")) for item in metrics),
+            default=0,
+        ),
+        "ontology_relations": _sorted_values(
+            value for item in metrics for value in _list_values(item.get("ontology_relations"))
+        ),
+        "ontology_rules": _sorted_values(
+            value for item in metrics for value in _list_values(item.get("ontology_rules"))
+        ),
+        "ontology_versions": _sorted_values(
+            value for item in metrics for value in _list_values(item.get("ontology_versions"))
+        ),
+        "graph_candidate_chunks": sum(
+            _positive_int(item.get("graph_candidate_chunks")) for item in metrics
+        ),
+        "graph_candidate_chunks_with_semantic_links": sum(
+            _positive_int(item.get("graph_candidate_chunks_with_semantic_links"))
+            for item in metrics
+        ),
+        "graph_candidate_semantic_links_total": sum(
+            _positive_int(item.get("graph_candidate_semantic_links_total"))
+            for item in metrics
+        ),
+        "graph_candidate_max_traversal_depth": max(
+            (
+                _positive_int(item.get("graph_candidate_max_traversal_depth"))
+                for item in metrics
+            ),
+            default=0,
+        ),
+        "graph_candidate_ontology_relations": _sorted_values(
+            value
+            for item in metrics
+            for value in _list_values(item.get("graph_candidate_ontology_relations"))
+        ),
+        "graph_candidate_ontology_rules": _sorted_values(
+            value
+            for item in metrics
+            for value in _list_values(item.get("graph_candidate_ontology_rules"))
+        ),
+        "graph_candidate_ontology_versions": _sorted_values(
+            value
+            for item in metrics
+            for value in _list_values(item.get("graph_candidate_ontology_versions"))
+        ),
+        "final_graph_chunks": sum(
+            _positive_int(item.get("final_graph_chunks", item.get("graph_chunks")))
+            for item in metrics
+        ),
+        "final_graph_chunks_with_semantic_links": sum(
+            _positive_int(
+                item.get(
+                    "final_graph_chunks_with_semantic_links",
+                    item.get("graph_chunks_with_semantic_links"),
+                )
+            )
+            for item in metrics
+        ),
+        "final_semantic_links_total": sum(
+            _positive_int(
+                item.get("final_semantic_links_total", item.get("semantic_links_total"))
+            )
+            for item in metrics
+        ),
+        "final_max_traversal_depth": max(
+            (
+                _positive_int(
+                    item.get("final_max_traversal_depth", item.get("max_traversal_depth"))
+                )
+                for item in metrics
+            ),
+            default=0,
+        ),
+        "final_ontology_relations": _sorted_values(
+            value
+            for item in metrics
+            for value in _list_values(
+                item.get("final_ontology_relations", item.get("ontology_relations"))
+            )
+        ),
+        "final_ontology_rules": _sorted_values(
+            value
+            for item in metrics
+            for value in _list_values(item.get("final_ontology_rules", item.get("ontology_rules")))
+        ),
+        "final_ontology_versions": _sorted_values(
+            value
+            for item in metrics
+            for value in _list_values(
+                item.get("final_ontology_versions", item.get("ontology_versions"))
+            )
+        ),
+    }
+
+
+def _merge_retrieval_ontology_metrics(
+    final_metrics: dict[str, Any],
+    retrieval_metrics: dict[str, Any] | None,
+) -> dict[str, Any]:
+    metrics = dict(final_metrics)
+    metrics.update(
+        {
+            "final_graph_chunks": final_metrics["graph_chunks"],
+            "final_graph_chunks_with_semantic_links": final_metrics[
+                "graph_chunks_with_semantic_links"
+            ],
+            "final_semantic_links_total": final_metrics["semantic_links_total"],
+            "final_max_traversal_depth": final_metrics["max_traversal_depth"],
+            "final_ontology_relations": final_metrics["ontology_relations"],
+            "final_ontology_rules": final_metrics["ontology_rules"],
+            "final_ontology_versions": final_metrics["ontology_versions"],
+        }
+    )
+    if retrieval_metrics:
+        metrics.update(retrieval_metrics)
+    else:
+        metrics.update(
+            {
+                "graph_candidate_chunks": final_metrics["graph_chunks"],
+                "graph_candidate_chunks_with_semantic_links": final_metrics[
+                    "graph_chunks_with_semantic_links"
+                ],
+                "graph_candidate_semantic_links_total": final_metrics[
+                    "semantic_links_total"
+                ],
+                "graph_candidate_max_traversal_depth": final_metrics[
+                    "max_traversal_depth"
+                ],
+                "graph_candidate_ontology_relations": final_metrics["ontology_relations"],
+                "graph_candidate_ontology_rules": final_metrics["ontology_rules"],
+                "graph_candidate_ontology_versions": final_metrics["ontology_versions"],
+            }
+        )
+    return metrics
+
+
+def _positive_int(value: Any) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _list_values(value: Any) -> list[str]:
+    if isinstance(value, list | tuple | set):
+        return [str(item) for item in value if item is not None and str(item)]
+    if value is None or value == "":
+        return []
+    return [str(value)]
+
+
+def _sorted_values(values: Any) -> list[str]:
+    return sorted(set(_list_values(list(values))))

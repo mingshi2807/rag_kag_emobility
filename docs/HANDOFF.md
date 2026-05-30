@@ -1,7 +1,7 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-27
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, ontology-aware graph retrieval, ontology provenance in API/MCP evidence packs, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals with ontology metrics, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, ontology-aware graph retrieval, ontology provenance in API/MCP evidence packs, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
 **Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus ontology-governed graph relation semantics, ontology-aware traversal/scoring, agent-facing MCP tools with semantic-link provenance, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
@@ -41,9 +41,9 @@ Query -> vector + keyword + graph retrieval
 - `docs/ingest.md`, `docs/dev_journey.md`, and `docs/plan_note.md` still describe older BGE-base, 768-dimensional, SDPM/512-token assumptions.
 - `docs/mcp.md` documents nine MCP read tools, including filtered search, ontology-backed semantic links in evidence packs, implementation briefs, corpus status, chunk/entity lookup, and section search.
 - `.codex/skills/` contains repo-local OCPP RAG/KAG workflow skills for improvement, expert review, query eval, implementation guides, and smoke testing.
-- `docs/query_quality_eval.md` documents `rag eval-quality` and `rag eval-answers` gates for Section R DER, Section Q V2X, and Section K smart charging.
+- `docs/query_quality_eval.md` documents `rag eval-quality` and `rag eval-answers` gates for Section R DER, Section Q V2X, and Section K smart charging, including ontology graph candidate metrics.
 - `reports/ocpp21-ed2-rqk-quality-baseline.md` records a 12-case retrieval baseline: `12/12` passed, score `0.976`.
-- `reports/ocpp21-ed2-rqk-quality-ontology-aware-retrieval.md` records the ontology-aware graph retrieval gate: `12/12` passed, score `0.976`.
+- `reports/ocpp21-ed2-rqk-quality-ontology-aware-retrieval.md` records the ontology-aware graph retrieval gate with ontology metrics: `12/12` passed, score `0.976`, `30` graph candidate chunks, `110` graph candidate semantic links, max traversal depth `2`.
 - `reports/ocpp21-ed2-rqk-golden-answers.md` records a 3-case generated Markdown answer baseline: `3/3` passed, score `1.000`.
 - `reports/golden_answers/` stores the generated DER, V2X, and Smart Charging Markdown answers that can be rescored without another LLM call.
 - `reports/ocpp21-ed2-rqk-golden-answers-codex-only.md` records a Codex-authored, MCP-evidence-assisted 3-case generated-answer benchmark: `3/3` passed, score `1.000`.
@@ -76,7 +76,7 @@ Query -> vector + keyword + graph retrieval
 5. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
 6. Add API/MCP read-only ontology inspection endpoints once the ontology model stabilizes.
 7. Add API/CLI/MCP contract parity tests for corpus indexing and generated-answer Markdown behavior.
-8. Add ontology traversal metrics to eval reports, including graph-hit boost counts and semantic-link coverage per query.
+8. Use ontology metrics to tune graph candidate promotion into final top-k where it improves source-layer coverage without lowering quality scores.
 
 ## Verification Commands
 

@@ -54,10 +54,12 @@ class GraphSearcher:
                 or page > 1500
             )
             confidence = 0.5 if is_test else 0.9
+            metadata = dict(r.metadata or {})
+            metadata.setdefault("graph_traversal_depth", 0)
             scored.append(ScoredChunk(
                 r.chunk_id, r.document_id, r.chunk_index,
                 r.content, section, r.page_start,
-                r.page_end, confidence, "graph", r.metadata,
+                r.page_end, confidence, "graph", metadata,
             ))
 
         if expand_via_traversal and len(scored) < top_k:
@@ -93,14 +95,16 @@ class GraphSearcher:
                 max_depth=max_depth,
                 follow_both_directions=True,
             )
-            related_ids = [n.entity_id for n in nodes if n.depth > 0]
-            for eid in related_ids:
+            related_depths = {n.entity_id: n.depth for n in nodes if n.depth > 0}
+            for eid, depth in related_depths.items():
                 chunks = await self._graph.get_chunks_for_entity(eid, top_k=min(needed, 5))
                 for c in chunks:
+                    metadata = dict(c.metadata or {})
+                    metadata["graph_traversal_depth"] = depth
                     all_chunks.append(ScoredChunk(
                         c.chunk_id, c.document_id, c.chunk_index,
                         c.content, c.section_title, c.page_start,
-                        c.page_end, c.confidence * 0.7, "graph", c.metadata,
+                        c.page_end, c.confidence * 0.7, "graph", metadata,
                     ))
                 if len(all_chunks) >= needed:
                     break

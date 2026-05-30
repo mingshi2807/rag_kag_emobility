@@ -205,6 +205,7 @@ async def _eval_quality_async(
                 retrieval.chunks[:top_k],
                 latency_ms=retrieval.latency_ms,
                 strategy_breakdown=retrieval.strategy_breakdown,
+                retrieval_ontology_metrics=retrieval.ontology_metrics,
             )
             results.append(result)
             status = "PASS" if result.passed else "FAIL"

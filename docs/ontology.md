@@ -70,6 +70,13 @@ Graph retrieval also consumes the ontology catalog:
 This is intentionally conservative. Ontology provenance can change graph hit
 ordering, but it does not override vector/keyword/reranker evidence by itself.
 
+`rag eval-quality` reports ontology metrics so this behavior is measurable:
+graph candidate chunks, graph candidates with semantic links, total semantic
+links, final graph chunks, max traversal depth, relation types, and mapping
+rules. Candidate metrics can be non-zero even when final graph chunks are zero;
+that means the ontology graph produced governed candidates but final reranking
+selected vector/keyword evidence.
+
 ## Current OCPP Relations
 
 The first seed is `ocpp21-ed2-v1` and includes these active graph relations:
