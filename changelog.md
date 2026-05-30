@@ -2,6 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.4.0] - 2026-05-30
+
+### Added
+
+- Added a lightweight source-aware ontology catalog for OCPP 2.1 Ed2 evidence
+  relationships across Part 2 specification sections, Device Model
+  components/variables, and JSON schema payload paths.
+- Added ontology-aware graph promotion for fusion retrieval.
+- Added ontology metrics to retrieval quality reports, including graph
+  candidate chunks, graph candidate semantic links, final graph chunks, and
+  traversal depth.
+- Added ontology provenance in API/MCP evidence packs for downstream coding
+  agents and clients.
+- Added ontology-aware generation prompt guidance for implementation traces:
+  `spec behavior -> Device Model component/variable -> JSON schema payload`.
+- Added golden-answer scoring for ontology trace quality and missing-link
+  disclosure.
+
+### Changed
+
+- Updated generated-answer evaluation weighting so source-layer traceability is
+  part of the pass/fail contract.
+- Updated saved DeepSeek and Codex-only golden-answer reports under the stricter
+  ontology trace rubric.
+- Updated query-quality documentation to explain ontology trace scoring and
+  missing-link disclosure.
+- Updated handoff documentation to reflect ontology-aware retrieval,
+  generation, reporting, and answer scoring.
+
+### Verified
+
+- Ontology-aware retrieval quality report: `12/12` passed, score `0.976`.
+- DeepSeek saved-answer evaluation: `3/3` passed, score `0.990`.
+- Codex-only saved-answer evaluation: `3/3` passed, score `0.992`.
+- Golden-answer tests: `13/13` passed.
+- Scoped ruff checks passed on changed ontology, retrieval, generation, and
+  answer-evaluation files.
+- Scoped mypy checks passed on changed generation and answer-evaluation files.
+- Python compile checks passed for `src/rag_ocpp`.
+- `git diff --check` passed.
+
+### Known Limitations
+
+- API/CLI/MCP generated-answer Markdown parity is still not complete.
+- The ontology is currently a practical source-aware traceability layer, not a
+  complete formal protocol ontology.
+- Source ACLs, tenant isolation, retention/deletion policy, and secret-handling
+  policy remain future work.
+- Broader OCPP 2.1 Ed2 evaluation beyond R/Q/K remains future work.
+- CI wiring for ontology-aware retrieval and golden-answer gates remains
+  pending.
+
 ## [v0.3.0] - 2026-05-28
 
 ### Added

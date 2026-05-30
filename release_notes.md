@@ -1,3 +1,123 @@
+# v0.4.0 - Source-Aware Ontology and Traceable Generation
+
+## Release Title
+
+Source-Aware Ontology for OCPP 2.1 Ed2 RAG/KAG Traceability
+
+## Release Description
+
+`v0.4.0` adds the first source-aware ontology layer for the OCPP 2.1 Ed2
+knowledge backend. The release makes relationships between Part 2 specification
+sections, Device Model components/variables, and JSON schema payloads explicit
+enough to support ontology-guided retrieval, evidence-pack provenance, and
+stricter generated-answer evaluation.
+
+The goal of this release is not to replace normative OCPP evidence with an
+ontology. The ontology acts as a traceability layer: it helps developers,
+coding agents, and reviewers see how retrieved evidence connects across source
+layers, and it forces generated implementation guidance to disclose missing
+links instead of inventing unsupported fields or requirements.
+
+## Highlights
+
+- Added a lightweight source-aware ontology catalog for OCPP 2.1 Ed2 evidence
+  layers:
+  - Part 2 specification sections and feature areas
+  - Device Model components and variables
+  - JSON schema message and payload paths
+- Added ontology-aware graph promotion for fusion retrieval.
+- Added ontology metrics to retrieval evaluation reports:
+  - graph candidate chunks
+  - graph candidate semantic links
+  - final graph chunks
+  - traversal depth
+- Added ontology provenance in API/MCP evidence packs so downstream clients can
+  inspect semantic links and mapping rules.
+- Improved generation prompts with ontology-aware implementation trace guidance:
+  `spec behavior -> Device Model component/variable -> JSON schema payload`.
+- Added stricter golden-answer scoring for ontology trace quality and
+  missing-link disclosure.
+- Refreshed DeepSeek and Codex-only golden-answer reports under the stricter
+  ontology trace rubric.
+- Updated handoff and query-quality documentation for ontology-guided retrieval
+  and answer evaluation.
+
+## Operator Guidance
+
+Run retrieval quality with ontology metrics:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-quality \
+  --topic all \
+  --mode all \
+  --top-k 12 \
+  --output reports/ocpp21-ed2-rqk-quality-ontology-aware-retrieval.md
+```
+
+Rescore saved generated answers without a new LLM call:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-answers \
+  --from-answers-dir \
+  --answers-dir reports/golden_answers \
+  --output reports/ocpp21-ed2-rqk-golden-answers.md
+
+HF_HOME=./models .venv/bin/rag eval-answers \
+  --from-answers-dir \
+  --answers-dir reports/golden_answers_codex-only \
+  --output reports/ocpp21-ed2-rqk-golden-answers-codex-only.md
+```
+
+## Validation
+
+Validated locally with:
+
+- Retrieval quality baseline with ontology-aware retrieval:
+  - `12/12` passed
+  - score `0.976`
+  - `30` graph candidate chunks
+  - `134` graph candidate semantic links
+  - `3` final graph chunks
+- DeepSeek saved-answer evaluation under the ontology trace rubric:
+  - `3/3` passed
+  - score `0.990`
+- Codex-only saved-answer evaluation under the ontology trace rubric:
+  - `3/3` passed
+  - score `0.992`
+- `.venv/bin/pytest tests/test_eval/test_answers.py -q`
+  - `13 passed`
+- Scoped `ruff check` on changed ontology, retrieval, generation, and answer
+  evaluation files.
+- Scoped `mypy` on changed generation and answer evaluation files.
+- `.venv/bin/python -m compileall -q src/rag_ocpp`
+- `git diff --check`
+
+## Known Gaps
+
+- API/CLI/MCP generated-answer outputs still need full parity with the
+  golden-answer Markdown, citation, ontology trace, and missing-link disclosure
+  contract.
+- The ontology is a traceability and retrieval aid, not a complete formal OCPP
+  ontology.
+- Source-level ACLs, tenant isolation, retention/deletion policy, and
+  secret-handling policy remain future enterprise controls.
+- Eval coverage remains strongest for Section R DER, Section Q V2X, and Section
+  K smart charging; broader OCPP 2.1 Ed2 coverage is still pending.
+- CI wiring for ontology-aware retrieval and golden-answer gates remains
+  pending.
+
+## Recommended Tag
+
+```text
+v0.4.0
+```
+
+## Recommended Release Commit Message
+
+```text
+release: publish v0.4.0 source-aware ontology traceability
+```
+
 # v0.3.0 - FastAPI Enterprise Access Surface
 
 ## Release Title
