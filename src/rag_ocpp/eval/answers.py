@@ -41,8 +41,10 @@ class GoldenAnswerResult:
     optional_term_score: float
     markdown_score: float
     grounding_score: float
+    ontology_trace_score: float
     missing_headings: list[str] = field(default_factory=list)
     missing_required_terms: list[str] = field(default_factory=list)
+    missing_ontology_trace_items: list[str] = field(default_factory=list)
     matched_optional_terms: list[str] = field(default_factory=list)
     forbidden_matches: list[str] = field(default_factory=list)
     answer_chars: int = 0
@@ -94,6 +96,7 @@ class GoldenAnswerReport:
                     f"- Optional term score: `{case.optional_term_score:.3f}`",
                     f"- Markdown score: `{case.markdown_score:.3f}`",
                     f"- Grounding score: `{case.grounding_score:.3f}`",
+                    f"- Ontology trace score: `{case.ontology_trace_score:.3f}`",
                     f"- Answer chars: `{case.answer_chars}`",
                     f"- Query: {case.query}",
                 ]
@@ -105,6 +108,11 @@ class GoldenAnswerReport:
             if case.missing_required_terms:
                 lines.append(
                     f"- Missing required terms: `{', '.join(case.missing_required_terms)}`"
+                )
+            if case.missing_ontology_trace_items:
+                lines.append(
+                    "- Missing ontology trace items: "
+                    f"`{', '.join(case.missing_ontology_trace_items)}`"
                 )
             if case.matched_optional_terms:
                 lines.append(
@@ -223,16 +231,22 @@ def score_answer(
     optional_term_score = _ratio(len(matched_optional_terms), len(case.optional_terms))
     markdown_score = _markdown_score(answer)
     grounding_score = _grounding_score(answer, forbidden_matches)
+    ontology_trace_score, missing_ontology_trace_items = _ontology_trace_score(
+        answer,
+        matched_optional_terms,
+    )
     score = (
-        heading_score * 0.25
-        + required_term_score * 0.35
-        + optional_term_score * 0.15
+        heading_score * 0.22
+        + required_term_score * 0.30
+        + optional_term_score * 0.12
         + markdown_score * 0.10
-        + grounding_score * 0.15
+        + grounding_score * 0.14
+        + ontology_trace_score * 0.12
     )
     passed = (
         not missing_headings
         and not missing_required_terms
+        and ontology_trace_score >= 0.60
         and not forbidden_matches
         and score >= case.min_score
     )
@@ -248,8 +262,10 @@ def score_answer(
         optional_term_score=optional_term_score,
         markdown_score=markdown_score,
         grounding_score=grounding_score,
+        ontology_trace_score=ontology_trace_score,
         missing_headings=missing_headings,
         missing_required_terms=missing_required_terms,
+        missing_ontology_trace_items=missing_ontology_trace_items,
         matched_optional_terms=matched_optional_terms,
         forbidden_matches=forbidden_matches,
         answer_chars=len(answer),
@@ -297,6 +313,10 @@ def generation_query_for(case: GoldenAnswerCase) -> str:
         "Each section must be substantive and source-grounded. Include source citations "
         "using the retrieved section titles. Include implementation and conformance-test "
         "guidance for a senior backend developer. Do not invent fields or requirements.\n\n"
+        "When evidence supports it, include an ontology-aware implementation trace that "
+        "connects specification behavior, Device Model component/variable evidence, and "
+        "JSON schema payload validation. If one side of that trace is missing, disclose "
+        "the missing link in Evidence gaps.\n\n"
         f"Required answer terms: {required_terms}.\n"
         f"Useful optional answer terms when supported by evidence: {optional_terms}."
     )
@@ -400,6 +420,89 @@ def _grounding_score(answer: str, forbidden_matches: list[str]) -> float:
     if "missing" in answer.lower() or "gap" in answer.lower():
         score += 0.25
     return min(score, 1.0)
+
+
+def _ontology_trace_score(
+    answer: str,
+    matched_optional_terms: list[str],
+) -> tuple[float, list[str]]:
+    answer_lower = answer.lower()
+    implementation = _section_text(answer, "implementation guidance")
+    evidence_gaps = _section_text(answer, "evidence gaps")
+    score = 0.0
+    missing: list[str] = []
+
+    layer_hits = {
+        "spec": _has_any(
+            answer_lower,
+            ("spec", "section", "part 2", ".fr.", "requirement", "normative"),
+        ),
+        "Device Model": _has_any(answer_lower, ("device model", "ctrlr", "component")),
+        "schema": _has_any(answer_lower, ("schema", "json", ".req", "request")),
+    }
+    score += _ratio(sum(1 for matched in layer_hits.values() if matched), len(layer_hits)) * 0.35
+    missing.extend(layer for layer, matched in layer_hits.items() if not matched)
+
+    implementation_layers = sum(
+        1
+        for marker in (
+            ("spec", "section", "requirement", "normative"),
+            ("device model", "ctrlr", "component", "variable"),
+            ("schema", "json", ".req", "request", "validation"),
+        )
+        if _has_any(implementation, marker)
+    )
+    if implementation_layers >= 2:
+        score += 0.25
+    else:
+        missing.append("implementation trace")
+
+    if len(matched_optional_terms) >= 2:
+        score += 0.20
+    else:
+        missing.append("concrete protocol entities")
+
+    if _has_missing_link_disclosure(evidence_gaps or answer_lower):
+        score += 0.20
+    else:
+        missing.append("missing-link disclosure")
+
+    return min(score, 1.0), missing
+
+
+def _section_text(answer: str, heading: str) -> str:
+    pattern = re.compile(r"^#{1,6}\s+(.+)$", flags=re.MULTILINE)
+    matches = list(pattern.finditer(answer))
+    for index, match in enumerate(matches):
+        if _has_heading(heading, [_normalize_heading(match.group(1))]):
+            start = match.end()
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(answer)
+            return answer[start:end].lower()
+    return ""
+
+
+def _has_any(text: str, terms: tuple[str, ...]) -> bool:
+    return any(term in text for term in terms)
+
+
+def _has_missing_link_disclosure(text: str) -> bool:
+    return _has_any(
+        text,
+        (
+            "missing",
+            "gap",
+            "not supplied",
+            "not provided",
+            "not included",
+            "lacks",
+            "lack",
+            "cannot be",
+            "could not be",
+            "not enumerate",
+            "not detailed",
+            "no important gap",
+        ),
+    )
 
 
 def _has_citation(answer: str) -> bool:

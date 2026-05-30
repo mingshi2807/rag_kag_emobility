@@ -2,7 +2,7 @@
 
 - Cases: `3`
 - Passed: `3/3`
-- Score: `1.000`
+- Score: `0.992`
 - Fail-under: `0.800`
 - Status: `PASS`
 
@@ -11,15 +11,17 @@
 ### R-FUSION-DER-IMPLEMENTATION-ANSWER - PASS
 
 - Topic: `Section R DER control`
-- Score: `1.000`
+- Score: `0.976`
 - Heading score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
+- Ontology trace score: `0.800`
 - Answer chars: `6212`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 DER control using Part 2 spec behavior, Device Model components and variables, and JSON schema validation.
 - Answer: `reports/golden_answers_codex-only/R-FUSION-DER-IMPLEMENTATION-ANSWER.md`
+- Missing ontology trace items: `missing-link disclosure`
 - Matched optional terms: `DCDERCtrlr, SetDERControl, ReportDERControl, validation`
 
 Answer excerpt:
@@ -45,6 +47,7 @@ Answer excerpt:
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
+- Ontology trace score: `1.000`
 - Answer chars: `5947`
 - Query: Build implementation guidance for OCPP 2.1 Ed2 V2X energy services using spec rules, Device Model configuration, and JSON schemas.
 - Answer: `reports/golden_answers_codex-only/Q-FUSION-V2X-IMPLEMENTATION-ANSWER.md`
@@ -73,6 +76,7 @@ Answer excerpt:
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
+- Ontology trace score: `1.000`
 - Answer chars: `6280`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 smart charging using Section K spec behavior, Device Model variables, and JSON schema validation.
 - Answer: `reports/golden_answers_codex-only/K-FUSION-SMART-CHARGING-IMPLEMENTATION-ANSWER.md`

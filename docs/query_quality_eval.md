@@ -146,6 +146,11 @@ The answer gate checks:
 - Expected Markdown sections: Purpose, Normative behavior, Implementation guidance, Conformance-test focus, Evidence gaps.
 - Required domain terms for DER, V2X, and Smart Charging implementation answers.
 - Optional implementation-quality terms.
+- Ontology trace quality: the answer must connect specification behavior,
+  Device Model component/variable evidence, and JSON schema payload validation
+  when the retrieved context supports that trace.
+- Missing-link disclosure: if one side of the spec/DM/schema trace is absent,
+  the Evidence gaps section should say what is missing instead of inventing it.
 - Markdown structure and source-citation shape.
 - Refusal or missing-context phrases that indicate the generated answer did not use the retrieved evidence.
 
@@ -159,3 +164,7 @@ spec behavior -> Device Model component/variable -> JSON schema payload
 ```
 
 Ontology links are traceability hints, not standalone normative requirements.
+
+Reports include an `Ontology trace score` per answer. Answers still need the
+standard headings and required terms, but a low trace score now fails the case
+even if the Markdown is otherwise well formed.

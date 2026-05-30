@@ -54,6 +54,68 @@ No additional evidence gap was found in the retrieved evidence.
 
     assert result.passed
     assert result.score >= 0.90
+    assert result.ontology_trace_score >= 0.60
+
+
+def test_score_answer_reports_missing_ontology_trace_items():
+    case = filter_answer_cases(default_golden_answer_cases(), topics=["DER"])[0]
+    answer = """
+## Purpose
+DER control summary.
+
+## Normative behavior
+Evidence.
+
+## Implementation guidance
+Store state and run tests.
+
+## Conformance-test focus
+Run one happy-path test.
+
+## Evidence gaps
+None.
+
+[2.18. DER Control related](spec, page 10)
+"""
+
+    result = score_answer(case, answer)
+
+    assert not result.passed
+    assert result.ontology_trace_score < 0.60
+    assert "Device Model" in result.missing_ontology_trace_items
+    assert "schema" in result.missing_ontology_trace_items
+    assert "implementation trace" in result.missing_ontology_trace_items
+
+
+def test_score_answer_accepts_explicit_ontology_trace_and_missing_link_disclosure():
+    case = filter_answer_cases(default_golden_answer_cases(), topics=["V2X"])[0]
+    answer = """
+## Purpose
+V2X energy implementation coordinates Device Model capability and schema Request validation.
+
+## Normative behavior
+Section Q defines V2X behavior. The Device Model exposes V2XChargingCtrlr and
+the schema defines NotifyEVChargingNeeds Request payloads.
+
+## Implementation guidance
+- Ontology trace: spec behavior -> Device Model component/variable -> JSON schema payload.
+- Trace instance: Q01 V2X authorization -> V2XChargingCtrlr.SupportedEnergyTransferModes
+  -> NotifyEVChargingNeeds.req.chargingNeeds.requestedEnergyTransfer.
+- Validate schema payloads before applying V2X profile decisions.
+
+## Conformance-test focus
+- Test V2XChargingCtrlr gating, NotifyEVChargingNeeds validation, and unsupported mode rejection.
+
+## Evidence gaps
+No important gap was found in the retrieved evidence; disclose any missing schema path when absent.
+
+[Q01 - V2X Authorization](spec, page 1)
+"""
+
+    result = score_answer(case, answer)
+
+    assert result.passed
+    assert result.ontology_trace_score == 1.0
 
 
 def test_score_answer_fails_when_required_sections_are_missing():
@@ -178,6 +240,30 @@ def test_render_golden_answer_messages_requests_ontology_trace_when_available():
     assert "Semantic links:" in messages[1]["content"]
     assert "DCDERCtrlr --component_has_variable--> Enabled" in messages[1]["content"]
     assert "ontology-aware trace bullet" in messages[1]["content"]
+
+
+def test_answer_report_includes_ontology_trace_score():
+    case = filter_answer_cases(default_golden_answer_cases(), topics=["smart"])[0]
+    result = score_answer(
+        case,
+        """
+## Purpose
+smart charging ChargingProfile Device Model schema SetChargingProfile
+## Normative behavior
+Section K behavior uses SmartChargingCtrlr and schema validation.
+## Implementation guidance
+spec behavior -> Device Model component/variable -> JSON schema payload.
+SmartChargingCtrlr -> ChargingProfile -> SetChargingProfile.req validation limit.
+## Conformance-test focus
+tests
+## Evidence gaps
+No important gap was found.
+[2.10. Smart Charging related](spec, page 1)
+""",
+    )
+    report = build_answer_report([result], suite="test", fail_under=0.5)
+
+    assert "Ontology trace score" in report.to_markdown()
 
 
 def test_build_answer_report_fails_if_any_case_fails():

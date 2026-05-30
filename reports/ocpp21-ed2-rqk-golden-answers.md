@@ -2,7 +2,7 @@
 
 - Cases: `3`
 - Passed: `3/3`
-- Score: `1.000`
+- Score: `0.990`
 - Fail-under: `0.800`
 - Status: `PASS`
 
@@ -17,6 +17,7 @@
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
+- Ontology trace score: `1.000`
 - Answer chars: `7761`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 DER control using Part 2 spec behavior, Device Model components and variables, and JSON schema validation.
 - Answer: `reports/golden_answers/R-FUSION-DER-IMPLEMENTATION-ANSWER.md`
@@ -43,6 +44,7 @@ Answer excerpt:
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
+- Ontology trace score: `1.000`
 - Answer chars: `8710`
 - Query: Build implementation guidance for OCPP 2.1 Ed2 V2X energy services using spec rules, Device Model configuration, and JSON schemas.
 - Answer: `reports/golden_answers/Q-FUSION-V2X-IMPLEMENTATION-ANSWER.md`
@@ -64,15 +66,17 @@ Answer excerpt:
 ### K-FUSION-SMART-CHARGING-IMPLEMENTATION-ANSWER - PASS
 
 - Topic: `Section K smart charging`
-- Score: `1.000`
+- Score: `0.970`
 - Heading score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
 - Markdown score: `1.000`
 - Grounding score: `1.000`
+- Ontology trace score: `0.750`
 - Answer chars: `11629`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 smart charging using Section K spec behavior, Device Model variables, and JSON schema validation.
 - Answer: `reports/golden_answers/K-FUSION-SMART-CHARGING-IMPLEMENTATION-ANSWER.md`
+- Missing ontology trace items: `implementation trace`
 - Matched optional terms: `SmartChargingCtrlr, charging schedule, limit, validation`
 
 Answer excerpt:
