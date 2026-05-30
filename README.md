@@ -5,7 +5,7 @@ RAG plus KAG: source-aware ingestion, chunking, embeddings, PostgreSQL/pgvector
 storage, graph relationships, hybrid retrieval, generation, evaluation, CLI,
 API, and MCP access.
 
-Stable release target: `v0.3.0`.
+Stable release target: `v0.4.0`.
 
 ## What This Project Does
 
@@ -18,7 +18,7 @@ traceable, source-aware implementation guidance that can be evaluated, audited,
 and used by coding agents without leaking private protocol material into logs or
 uncontrolled generation flows.
 
-## v0.3.0 Status
+## v0.4.0 Status
 
 Implemented:
 
@@ -39,6 +39,10 @@ Implemented:
   preview, store, and index endpoints.
 - Shared API/CLI/MCP corpus status contract and documented curl/Postman smoke
   tests for the running uvicorn server.
+- Source-aware ontology traceability across specification, Device Model, and
+  JSON schema evidence.
+- Ontology-aware retrieval metrics, generation prompts, and golden-answer
+  scoring.
 
 Not yet enterprise-complete:
 
@@ -135,6 +139,123 @@ Set an admin token only when mutating API endpoints are needed:
 export API_ADMIN_TOKEN=<admin-token>
 ```
 
+## Quickstart
+
+This path starts from an installed local environment and demonstrates the
+complete OCPP 2.1 Ed2 knowledge flow: database, corpus, indexing, query,
+evaluation, and HTTP access.
+
+Start PostgreSQL and apply migrations:
+
+```bash
+docker compose up -d
+.venv/bin/rag migrate-status
+.venv/bin/rag migrate
+```
+
+Place private OCPP sources in the expected local layout:
+
+```text
+data/pdf/
+data/csv/
+data/json/
+```
+
+Build and index the source-aware corpus:
+
+```bash
+HF_HOME=./models .venv/bin/rag corpus
+HF_HOME=./models .venv/bin/rag corpus --store
+HF_HOME=./models .venv/bin/rag index-corpus
+HF_HOME=./models .venv/bin/rag corpus-status
+```
+
+Run a spec-focused query:
+
+```bash
+HF_HOME=./models .venv/bin/rag query \
+  "Explain Section R DER control implementation responsibilities in OCPP 2.1 Ed2." \
+  --top-k 8 \
+  --evidence-layer spec
+```
+
+Run a Device Model query:
+
+```bash
+HF_HOME=./models .venv/bin/rag query \
+  "Which Device Model components are relevant for V2X energy services?" \
+  --top-k 8 \
+  --evidence-layer device_model
+```
+
+Run a fusion query across specification, Device Model, and JSON schema evidence:
+
+```bash
+HF_HOME=./models .venv/bin/rag query \
+  "Build implementation guidance for OCPP 2.1 Ed2 smart charging using spec behavior, Device Model variables, and JSON schema validation." \
+  --top-k 12
+```
+
+Run the R/Q/K retrieval quality gate:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-quality \
+  --topic all \
+  --mode all \
+  --top-k 12
+```
+
+Rescore saved generated answers without a new LLM call:
+
+```bash
+HF_HOME=./models .venv/bin/rag eval-answers \
+  --from-answers-dir \
+  --answers-dir reports/golden_answers
+```
+
+Start the FastAPI server. Source `.env` first when generation endpoints need
+`DEEPSEEK_API_KEY`.
+
+```bash
+set -a
+source .env
+set +a
+
+HF_HOME=./models API_ADMIN_TOKEN=local-test-token \
+  .venv/bin/uvicorn "rag_ocpp.api.app:create_app" \
+  --factory \
+  --host 127.0.0.1 \
+  --port 8000
+```
+
+Open the interactive API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Run HTTP smoke checks:
+
+```bash
+curl -s http://127.0.0.1:8000/health | jq
+
+curl -s \
+  "http://127.0.0.1:8000/search?q=Device%20Model%20purpose&top_k=3&evidence_layer=device_model&include_content=false" \
+  | jq
+
+curl -s -X POST http://127.0.0.1:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Explain DER control in OCPP 2.1 Ed2 with spec, Device Model, and schema evidence.",
+    "top_k": 8,
+    "include_content": false
+  }' | jq
+```
+
+The expected result is not only a generic answer. The response should expose
+source-aware evidence, ontology links when available, and implementation
+guidance grounded in the specification, Device Model, and JSON schemas.
+
 ## Database Setup
 
 Start PostgreSQL:
@@ -178,7 +299,7 @@ legacy database adoption details.
 
 ## Corpus Ingestion
 
-The v0.3.0 priority corpus is OCPP 2.1 Ed2:
+The v0.4.0 priority corpus is OCPP 2.1 Ed2:
 
 - Part 2 specification PDF
 - Device Model CSV/XLSX tables
@@ -422,7 +543,7 @@ before project type checking if the Python interpreter is missing `_sqlite3`.
 
 ## Release Notes
 
-- Current stable tag target: `v0.3.0`
+- Current stable tag target: `v0.4.0`
 - API reference: [api.json](api.json)
 - Release notes: [release_notes.md](release_notes.md)
 - Changelog: [changelog.md](changelog.md)
@@ -430,7 +551,7 @@ before project type checking if the Python interpreter is missing `_sqlite3`.
 Recommended release commit message:
 
 ```text
-release: publish v0.3.0 FastAPI access surface
+release: publish v0.4.0 source-aware ontology traceability
 ```
 
 ## Documentation Index
