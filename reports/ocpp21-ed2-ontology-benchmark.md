@@ -179,8 +179,9 @@ Results:
 | Graph traversal relation filter | none | active ontology relation types | improved control |
 | Graph semantic-link score boost | no | yes | improved ranking signal |
 | Eval graph candidate chunks | not reported | 30 | +30 observed |
-| Eval graph candidate semantic links | not reported | 110 | +110 observed |
-| Eval max graph traversal depth | not reported | 2 | +2 observed |
+| Eval graph candidate semantic links | not reported | 134 | +134 observed |
+| Eval final graph chunks | not reported | 3 | +3 observed |
+| Eval max graph traversal depth | not reported | 0 | unchanged |
 | Graph retrieval unit tests | 0 | 2 | +2 |
 
 Observed top-evidence changes stayed within the passing envelope. Fusion cases
@@ -199,13 +200,20 @@ refreshed 12-case report is:
 - Score: `0.976`
 - Graph candidate chunks: `30`
 - Graph candidate chunks with semantic links: `30`
-- Graph candidate semantic links: `110`
-- Final graph chunks: `0`
-- Max traversal depth: `2`
+- Graph candidate semantic links: `134`
+- Final graph chunks: `3`
+- Max traversal depth: `0`
 - Relation types observed: `component_has_variable`, `dm_defines_entity`,
   `schema_defines_entity`, `spec_defines_entity`
 - Mapping rules observed: `dm_component_variable`, `source_appendix_records`,
   `source_dm_records`, `source_schema_records`, `source_spec_records`
+
+The fusion cases now promote one source-aware graph chunk where the required
+spec, Device Model, and schema coverage remains intact:
+
+- DER: `DCDERCtrlr / Enabled / no`
+- V2X: `V2XChargingCtrlr / SupportedOperationModes`
+- Smart Charging: `SmartChargingCtrlr`
 
 Focused DER fusion report:
 
@@ -215,10 +223,10 @@ Focused DER fusion report:
 - Graph candidate semantic links: `39`
 - Max traversal depth: `2`
 
-Interpretation: ontology-aware graph retrieval is producing governed candidates,
-but current vector/keyword/reranker and source-layer coverage logic still win
-the final top-k for the R/Q/K suite. This is a useful enterprise signal: graph
-candidate contribution is measurable without silently altering answer evidence.
+Interpretation: ontology-aware graph retrieval is producing governed candidates
+and can now contribute source-aware final evidence in fusion cases. Promotion is
+bounded: graph chunks must carry ontology semantic links and a required evidence
+layer, and replacement must preserve spec, Device Model, and schema coverage.
 
 ## Conclusion
 
@@ -233,10 +241,12 @@ traversal and graph-hit scoring.
 
 ## Next Benchmark
 
-The next benchmark should use these metrics to tune graph promotion:
+The next benchmark should evaluate generation quality with ontology evidence in
+the context:
 
-- compare final top-k quality when one high-confidence ontology graph candidate
-  is promoted in fusion cases;
-- measure whether graph promotion improves source-layer coverage or answer
-  faithfulness;
-- keep the R/Q/K score at or above `0.976`.
+- require Markdown answers to include a `spec -> Device Model -> schema`
+  implementation trace when evidence is available;
+- measure whether ontology-aware generation improves answer faithfulness and
+  implementation usefulness;
+- keep the R/Q/K retrieval score at or above `0.976` and golden-answer score at
+  `1.000`.

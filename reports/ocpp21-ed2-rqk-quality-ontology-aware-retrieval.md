@@ -10,10 +10,10 @@
 
 - Graph candidate chunks: `30`
 - Graph candidate chunks with semantic links: `30`
-- Graph candidate semantic links: `110`
-- Final graph chunks: `0`
-- Final graph chunks with semantic links: `0`
-- Max traversal depth: `2`
+- Graph candidate semantic links: `134`
+- Final graph chunks: `3`
+- Final graph chunks with semantic links: `3`
+- Max traversal depth: `0`
 - Ontology relation types: `component_has_variable, dm_defines_entity, schema_defines_entity, spec_defines_entity`
 - Ontology mapping rules: `dm_component_variable, source_appendix_records, source_dm_records, source_schema_records, source_spec_records`
 
@@ -27,7 +27,7 @@
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.333`
-- Latency: `14383ms`
+- Latency: `14085ms`
 - Strategy: `{'vector': 7, 'keyword': 5}`
 - Query: In OCPP 2.1 Ed2 Section R, what are the DER control objectives, requirements, and implementation responsibilities?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -51,7 +51,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.333`
-- Latency: `6445ms`
+- Latency: `6284ms`
 - Strategy: `{'vector': 7, 'keyword': 5}`
 - Query: Which Device Model components and variables are relevant for OCPP 2.1 Ed2 DER control implementation?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -75,7 +75,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `11465ms`
+- Latency: `11299ms`
 - Strategy: `{'vector': 8, 'keyword': 4}`
 - Query: Which OCPP 2.1 JSON schemas define DER control request and response payload constraints?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -99,23 +99,23 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `28668ms`
-- Strategy: `{'vector': 5, 'keyword': 7}`
+- Latency: `28597ms`
+- Strategy: `{'vector': 4, 'keyword': 7, 'graph': 1}`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 DER control using Part 2 spec behavior, Device Model components and variables, and JSON schema validation.
-- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=39, final_graph_chunks=0, max_depth=2`
+- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=46, final_graph_chunks=1, max_depth=0`
 - Matched optional terms: `Response, Variable, requirements, validation`
 
 Evidence layer coverage:
 - `spec` `spec_pdf` `2.18. DER Control related` `b719b1bf-277d-5549-b455-818f73515901`
 - `schema` `json_schema` `ReportDERControl.req.tbc` `907e1c0c-ec7d-5605-9769-2dab64c0203c`
-- `device_model` `device_model_table` `DCDERCtrlr / ModesSupported` `6c5cca30-db74-5ad3-9060-2f84f4ed4062`
+- `device_model` `device_model_table` `DCDERCtrlr / Enabled / no` `022ab67c-d930-53a8-983c-816676b0019d`
 
 Top evidence:
 - `spec` `spec_pdf` `2.18. DER Control related` `b719b1bf-277d-5549-b455-818f73515901`
 - `spec` `spec_pdf` `2.15. ISO 15118 related` `38bd2b05-3eb6-53ea-96fe-7a8e1b99e832`
 - `schema` `json_schema` `ReportDERControl.req.tbc` `907e1c0c-ec7d-5605-9769-2dab64c0203c`
 - `spec` `spec_pdf` `Chapter 2. DER Control using OCPP and ISO 15118-20` `8e776275-8447-5707-abec-4851153b648d`
-- `spec` `spec_pdf` `2.6. Local Authorization List Management related` `261d153a-e3d3-579e-8d05-75161a23e241`
+- `device_model` `device_model_table` `DCDERCtrlr / Enabled / no` `022ab67c-d930-53a8-983c-816676b0019d`
 
 ### Q-SPEC-V2X-ENERGY - PASS
 
@@ -125,7 +125,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `14448ms`
+- Latency: `14518ms`
 - Strategy: `{'vector': 12}`
 - Query: In OCPP 2.1 Ed2 Section Q, what V2X energy services behavior must a charging station backend implement?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -149,7 +149,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.667`
-- Latency: `3833ms`
+- Latency: `3836ms`
 - Strategy: `{'vector': 9, 'keyword': 3}`
 - Query: Which Device Model components and variables support V2X energy services in OCPP 2.1 Ed2?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -173,7 +173,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.667`
-- Latency: `6083ms`
+- Latency: `6130ms`
 - Strategy: `{'vector': 10, 'keyword': 2}`
 - Query: Which OCPP 2.1 JSON schemas and payload fields are relevant to V2X energy services?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -197,21 +197,21 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.750`
-- Latency: `29018ms`
-- Strategy: `{'keyword': 8, 'vector': 4}`
+- Latency: `29195ms`
+- Strategy: `{'keyword': 8, 'graph': 1, 'vector': 3}`
 - Query: Build implementation guidance for OCPP 2.1 Ed2 V2X energy services using spec rules, Device Model configuration, and JSON schemas.
-- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=32, final_graph_chunks=0, max_depth=0`
+- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=49, final_graph_chunks=1, max_depth=0`
 - Matched optional terms: `services, Variable, Request`
 
 Evidence layer coverage:
 - `spec` `spec_pdf` `Q09 - Local V2X control for load balancing` `1c2f13fb-d32f-5aee-bcad-dca8bc7cd59c`
+- `device_model` `device_model_table` `V2XChargingCtrlr / SupportedOperationModes` `389e6d76-c812-5c0b-bfef-07d11f41746f`
 - `schema` `json_schema` `NotifyEVChargingNeeds.req.chargingNeeds.v2xChargingParameters.evMaxV2XEnergyRequest` `283cf5d1-5bc3-5abe-adff-fb0a24a73a1d`
-- `device_model` `device_model_table` `V2XChargingCtrlr / SupportedEnergyTransferModes` `9c10ac6d-8068-5304-9973-3e0aa30bc826`
 
 Top evidence:
 - `spec` `spec_pdf` `Q09 - Local V2X control for load balancing` `1c2f13fb-d32f-5aee-bcad-dca8bc7cd59c`
 - `spec` `spec_pdf` `R03 - Starting a V2X session with hybrid DER control in both EV and EVSE` `702aa98b-839d-53b0-a193-1609c5cb406f`
-- `spec` `spec_pdf` `2.9. Reservation related` `499251d0-62cd-59ff-8f83-cc50e1c2edde`
+- `device_model` `device_model_table` `V2XChargingCtrlr / SupportedOperationModes` `389e6d76-c812-5c0b-bfef-07d11f41746f`
 - `spec` `spec_pdf` `Q08 - Local V2X control for frequency support` `d967b092-88b9-590e-b038-084c57a13a46`
 - `spec` `spec_pdf` `R02 - Starting a V2X session with DER control in EV` `2d4d285c-2408-57f5-b21b-9c2a8e240375`
 
@@ -223,7 +223,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `14562ms`
+- Latency: `14547ms`
 - Strategy: `{'vector': 11, 'keyword': 1}`
 - Query: In OCPP 2.1 Ed2 Section K, what are the smart charging purposes, profiles, limits, and implementation responsibilities?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -247,7 +247,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.667`
-- Latency: `4830ms`
+- Latency: `4886ms`
 - Strategy: `{'vector': 6, 'keyword': 6}`
 - Query: Which Device Model components and variables configure smart charging in OCPP 2.1 Ed2?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -271,7 +271,7 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `1.000`
-- Latency: `4723ms`
+- Latency: `4788ms`
 - Strategy: `{'vector': 5, 'keyword': 7}`
 - Query: Which JSON schemas define OCPP 2.1 smart charging messages such as SetChargingProfile and charging schedule payloads?
 - Ontology metrics: `candidate_graph_chunks=0, candidate_semantic_link_chunks=0, candidate_semantic_links=0, final_graph_chunks=0, max_depth=0`
@@ -295,20 +295,20 @@ Top evidence:
 - Layer score: `1.000`
 - Required term score: `1.000`
 - Optional term score: `0.750`
-- Latency: `28742ms`
-- Strategy: `{'vector': 5, 'keyword': 7}`
+- Latency: `29379ms`
+- Strategy: `{'vector': 5, 'keyword': 6, 'graph': 1}`
 - Query: Build senior backend implementation guidance for OCPP 2.1 Ed2 smart charging using Section K spec behavior, Device Model variables, and JSON schema validation.
-- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=39, final_graph_chunks=0, max_depth=2`
+- Ontology metrics: `candidate_graph_chunks=10, candidate_semantic_link_chunks=10, candidate_semantic_links=39, final_graph_chunks=1, max_depth=0`
 - Matched optional terms: `Variable, SetChargingProfile, limit`
 
 Evidence layer coverage:
 - `spec` `spec_pdf` `2.10. Smart Charging related` `e262bea2-c84b-52d0-a07b-1f6c4c91e5f8`
 - `schema` `json_schema` `NotifyEVChargingSchedule.req.chargingSchedule.minChargingRate` `85119313-b24b-5718-be14-3e802647a1cb`
-- `device_model` `device_model_table` `SmartChargingCtrlr / ACPhaseSwitchingSupported` `2d33e709-0fe8-5ffc-a8fc-8e7e57d48b88`
+- `device_model` `appendix_csv` `SmartChargingCtrlr` `bb0bf922-eb9b-5df9-8845-deedbf53a103`
 
 Top evidence:
 - `spec` `spec_pdf` `2.10. Smart Charging related` `e262bea2-c84b-52d0-a07b-1f6c4c91e5f8`
 - `schema` `json_schema` `NotifyEVChargingSchedule.req.chargingSchedule.minChargingRate` `85119313-b24b-5718-be14-3e802647a1cb`
 - `spec` `spec_pdf` `K27 - Smart Charging with EMS and LocalGeneration` `6675c8fe-b0e4-5881-8db3-171acfa7c3eb`
-- `spec` `spec_pdf` `2.12. Diagnostics related` `4e49c01c-eff5-5672-8530-155b8c8cdf0d`
-- `device_model` `device_model_table` `SmartChargingCtrlr / ACPhaseSwitchingSupported` `2d33e709-0fe8-5ffc-a8fc-8e7e57d48b88`
+- `device_model` `appendix_csv` `SmartChargingCtrlr` `bb0bf922-eb9b-5df9-8845-deedbf53a103`
+- `device_model` `device_model_table` `SmartChargingCtrlr / SupportedAdditionalPurposes / no` `fb896b1e-48b3-5988-b965-7887dd1188b8`

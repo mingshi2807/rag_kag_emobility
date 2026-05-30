@@ -11,8 +11,11 @@ from rag_ocpp.eval.quality import (
     filter_cases,
     score_case,
 )
+from rag_ocpp.knowledge.entities import extract_entity_names
 from rag_ocpp.retrieval.hybrid import (
     _ensure_evidence_layer_coverage,
+    _ensure_ontology_graph_coverage,
+    _graph_query,
     _topic_dm_query,
     _topic_spec_query,
 )
@@ -221,6 +224,19 @@ def test_topic_dm_query_expands_v2x_to_v2x_charging_controller():
     assert "SupportedEnergyTransferModes" in query
 
 
+def test_graph_query_expands_fusion_queries_to_extractable_entities():
+    query = _graph_query(
+        "Build senior backend implementation guidance for OCPP 2.1 Ed2 DER control "
+        "using Part 2 spec behavior, Device Model components and variables, and JSON "
+        "schema validation."
+    )
+
+    entities = extract_entity_names(query)
+    assert "DCDERCtrlr" in entities
+    assert "SetDERControl" in entities
+    assert "ReportDERControl" in entities
+
+
 def test_fusion_layer_coverage_does_not_overwrite_inserted_required_layers():
     spec = _chunk("Q09 V2X control", layer="spec")
     dm = _chunk("V2XChargingCtrlr SupportedEnergyTransferModes", layer="device_model")
@@ -238,6 +254,81 @@ def test_fusion_layer_coverage_does_not_overwrite_inserted_required_layers():
     layers = {(chunk.metadata or {}).get("evidence_layer") for chunk in result}
     assert "device_model" in layers
     assert "schema" in layers
+
+
+def test_ontology_graph_coverage_promotes_graph_without_losing_required_layers():
+    spec = _chunk("R DER Control related", layer="spec")
+    dm = _chunk("DCDERCtrlr ModesSupported Variable", layer="device_model")
+    schema = _chunk("ReportDERControl request validation", layer="schema")
+    duplicate_spec = _chunk("Generic DER chapter", layer="spec")
+    graph = _chunk(
+        "DCDERCtrlr ModesSupported links DER control schema",
+        layer="device_model",
+        strategy="graph",
+        extra_metadata={
+            "graph_semantic_links": 3,
+            "graph_ontology_relations": ["component_has_variable"],
+            "graph_ontology_rules": ["dm_component_variable"],
+            "graph_traversal_depth": 1,
+        },
+    )
+
+    result = _ensure_ontology_graph_coverage(
+        "DER control implementation using spec Device Model JSON schema",
+        [spec, dm, schema, duplicate_spec],
+        [graph],
+        ("spec", "device_model", "schema"),
+        4,
+    )
+
+    layers = {(chunk.metadata or {}).get("evidence_layer") for chunk in result}
+    assert {"spec", "device_model", "schema"} <= layers
+    assert any(chunk.strategy == "graph" for chunk in result)
+
+
+def test_ontology_graph_coverage_does_not_replace_unique_required_layer():
+    spec = _chunk("R DER Control related", layer="spec")
+    dm = _chunk("DCDERCtrlr ModesSupported Variable", layer="device_model")
+    schema = _chunk("ReportDERControl request validation", layer="schema")
+    graph = _chunk(
+        "DER ontology relation",
+        layer="unknown",
+        strategy="graph",
+        extra_metadata={"graph_semantic_links": 3},
+    )
+
+    result = _ensure_ontology_graph_coverage(
+        "DER control implementation",
+        [spec, dm, schema],
+        [graph],
+        ("spec", "device_model", "schema"),
+        3,
+    )
+
+    assert result == [spec, dm, schema]
+
+
+def test_ontology_graph_coverage_ignores_unknown_layer_graph_candidate():
+    spec = _chunk("R DER Control related", layer="spec")
+    duplicate_spec = _chunk("Generic DER chapter", layer="spec")
+    dm = _chunk("DCDERCtrlr ModesSupported Variable", layer="device_model")
+    schema = _chunk("ReportDERControl request validation", layer="schema")
+    graph = _chunk(
+        "Unknown ontology relation",
+        layer="unknown",
+        strategy="graph",
+        extra_metadata={"graph_semantic_links": 3},
+    )
+
+    result = _ensure_ontology_graph_coverage(
+        "DER control implementation",
+        [spec, duplicate_spec, dm, schema],
+        [graph],
+        ("spec", "device_model", "schema"),
+        4,
+    )
+
+    assert result == [spec, duplicate_spec, dm, schema]
 
 
 def _chunk(

@@ -201,7 +201,7 @@ class HybridRetriever:
         )
         if use_graph:
             tasks.append(asyncio.create_task(self._graph.search(
-                query, top_k=self._graph_top_k, protocol_id=pid or 1,
+                _graph_query(query), top_k=self._graph_top_k, protocol_id=pid or 1,
                 expand_via_traversal=True)))
 
         import logging
@@ -267,6 +267,13 @@ class HybridRetriever:
                 query,
                 final,
                 [c for c, _ in fused],
+                ("spec", "device_model", "schema"),
+                self._final_top_k,
+            )
+            final = _ensure_ontology_graph_coverage(
+                query,
+                final,
+                gr,
                 ("spec", "device_model", "schema"),
                 self._final_top_k,
             )
@@ -428,7 +435,7 @@ class HybridRetriever:
         )
         if use_graph:
             tasks.append(asyncio.create_task(self._graph.search(
-                query, top_k=self._graph_top_k, protocol_id=pid or 1,
+                _graph_query(query), top_k=self._graph_top_k, protocol_id=pid or 1,
                 expand_via_traversal=True)))
 
         import logging
@@ -472,6 +479,13 @@ class HybridRetriever:
                 query,
                 top,
                 [c for c, _ in fused],
+                ("spec", "device_model", "schema"),
+                self._final_top_k,
+            )
+            top = _ensure_ontology_graph_coverage(
+                query,
+                top,
+                gr,
                 ("spec", "device_model", "schema"),
                 self._final_top_k,
             )
@@ -626,6 +640,12 @@ def _topic_dm_query(query: str) -> str:
             "control capabilities"
         )
     return query
+
+
+def _graph_query(query: str) -> str:
+    if not _is_evidence_fusion_query(query):
+        return query
+    return f"{query} {_topic_spec_query(query)} {_topic_dm_query(query)} {_schema_query(query)}"
 
 
 def _extract_message_terms(query: str) -> list[str]:
@@ -848,6 +868,114 @@ def _ensure_evidence_layer_coverage(
         final_by_id.add(candidate.chunk_id)
 
     return output[:top_k]
+
+
+def _ensure_ontology_graph_coverage(
+    query: str,
+    final: list[ScoredChunk],
+    graph_candidates: list[ScoredChunk],
+    required_layers: tuple[str, ...],
+    top_k: int,
+) -> list[ScoredChunk]:
+    if not graph_candidates or any(_has_ontology_graph_evidence(chunk) for chunk in final):
+        return final[:top_k]
+
+    output = list(final[:top_k])
+    final_by_id = {chunk.chunk_id for chunk in output}
+    coverage_terms = _coverage_terms(query)
+    candidates = [
+        chunk
+        for chunk in graph_candidates
+        if chunk.chunk_id not in final_by_id
+        and _has_ontology_graph_evidence(chunk)
+        and _chunk_layer(chunk) in required_layers
+    ]
+    if not candidates:
+        return output
+
+    layer_counts = _layer_counts(output)
+    ranked_candidates = sorted(
+        candidates,
+        key=lambda chunk: _ontology_graph_promotion_score(chunk, coverage_terms),
+        reverse=True,
+    )
+    for candidate in ranked_candidates:
+        candidate_layer = _chunk_layer(candidate)
+        if len(output) < top_k:
+            output.append(candidate)
+            return output[:top_k]
+
+        replacement_positions = [
+            index
+            for index, chunk in enumerate(output)
+            if chunk.strategy != "graph"
+            and _can_replace_without_losing_layer(
+                chunk,
+                candidate_layer,
+                layer_counts,
+                required_layers,
+            )
+        ]
+        if not replacement_positions:
+            continue
+        replacement_position = min(
+            replacement_positions,
+            key=lambda index: _ontology_replacement_score(output[index], coverage_terms),
+        )
+        output[replacement_position] = candidate
+        return output[:top_k]
+
+    return output[:top_k]
+
+
+def _has_ontology_graph_evidence(chunk: ScoredChunk) -> bool:
+    metadata = chunk.metadata or {}
+    return (
+        chunk.strategy == "graph"
+        and _positive_int(metadata.get("graph_semantic_links")) > 0
+    )
+
+
+def _layer_counts(chunks: list[ScoredChunk]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for chunk in chunks:
+        layer = _chunk_layer(chunk)
+        counts[layer] = counts.get(layer, 0) + 1
+    return counts
+
+
+def _chunk_layer(chunk: ScoredChunk) -> str:
+    return str((chunk.metadata or {}).get("evidence_layer") or "unknown")
+
+
+def _can_replace_without_losing_layer(
+    chunk: ScoredChunk,
+    candidate_layer: str,
+    layer_counts: dict[str, int],
+    required_layers: tuple[str, ...],
+) -> bool:
+    current_layer = _chunk_layer(chunk)
+    if current_layer == candidate_layer:
+        return True
+    if current_layer not in required_layers:
+        return True
+    return layer_counts.get(current_layer, 0) > 1
+
+
+def _ontology_graph_promotion_score(chunk: ScoredChunk, terms: tuple[str, ...]) -> float:
+    metadata = chunk.metadata or {}
+    semantic_links = min(_positive_int(metadata.get("graph_semantic_links")), 5)
+    traversal_depth = _positive_int(metadata.get("graph_traversal_depth"))
+    return (
+        _coverage_relevance_score(chunk, terms)
+        + (semantic_links * 0.75)
+        - (traversal_depth * 0.25)
+    )
+
+
+def _ontology_replacement_score(chunk: ScoredChunk, terms: tuple[str, ...]) -> float:
+    layer_bonus = 1.0 if _chunk_layer(chunk) in {"spec", "device_model", "schema"} else 0.0
+    return _coverage_relevance_score(chunk, terms) + layer_bonus
 
 
 def _coverage_terms(query: str) -> tuple[str, ...]:

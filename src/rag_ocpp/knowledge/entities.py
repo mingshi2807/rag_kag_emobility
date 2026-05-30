@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import ClassVar
 
-
 # ── Entity type enum ─────────────────────────────────────
 
 class OCPPEntityType(Enum):
@@ -74,6 +73,8 @@ _COMMANDS = [
     "NotifyEVChargingNeeds", "NotifyEVChargingSchedule",
     "NotifyPriorityCharging", "NotifySettlement",
     "PullDynamicScheduleUpdate",
+    "SetDERControl", "ReportDERControl", "NotifyDERStartStop",
+    "NotifyAllowedEnergyTransfer",
 ]
 
 _DATATYPES = [
@@ -92,11 +93,15 @@ _DATATYPES = [
     "ChargingProfileCriterion", "ClearChargingProfileInfo",
     "CertificateSignedData", "CertificateChainData",
     "GetVariableResult", "SetVariableResult",
+    "DERChargingParameters", "DERChargingParametersType",
+    "V2XChargingParameters", "V2XChargingParametersType",
+    "V2XFreqWattPointType",
 ]
 
 _COMPONENTS = [
     "ChargePoint", "ChargingStation", "Connector", "EVSE",
     "EV", "CSMS", "ChargingStationOperator", "EVDriver",
+    "ACDERCtrlr", "DCDERCtrlr", "SmartChargingCtrlr", "V2XChargingCtrlr",
 ]
 
 _VARIABLES = [
@@ -106,6 +111,9 @@ _VARIABLES = [
     "StopTransactionOnEVSideDisconnect", "StopTransactionOnInvalidId",
     "MaxEnergyOnInvalidId", "AllowOfflineTxForUnknownId",
     "CpoName", "ChargePointSerialNumber",
+    "ACPhaseSwitchingSupported", "ChargingProfilePersistence", "Enabled",
+    "ModesSupported", "SupportedAdditionalPurposes",
+    "SupportedEnergyTransferModes", "SupportedOperationModes",
 ]
 
 _ENUMS = [
@@ -159,7 +167,9 @@ class OCPPPatterns:
     @classmethod
     def _build(cls) -> list[tuple[OCPPEntityType, re.Pattern[str]]]:
         patterns: list[tuple[OCPPEntityType, re.Pattern[str]]] = []
-        sl = lambda items: sorted(items, key=len, reverse=True)
+
+        def sl(items: list[str]) -> list[str]:
+            return sorted(items, key=len, reverse=True)
 
         patterns.append(
             (OCPPEntityType.COMMAND,

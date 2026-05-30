@@ -703,7 +703,7 @@ class GraphStore:
             """
             SELECT DISTINCT ON (c.id)
                    c.id, c.document_id, c.chunk_index, c.content,
-                   c.section_title, c.page_start, c.page_end,
+                   c.section_title, c.page_start, c.page_end, c.metadata,
                    e.name AS entity_name,
                    et.name AS entity_type,
                    ce.confidence
@@ -730,6 +730,7 @@ class GraphStore:
                 entity_name=r["entity_name"],
                 entity_type=r["entity_type"],
                 confidence=float(r["confidence"]),
+                metadata=_json_dict(r["metadata"]),
             )
             for r in rows
         ]
