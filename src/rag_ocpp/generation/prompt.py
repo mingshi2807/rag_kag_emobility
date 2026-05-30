@@ -20,6 +20,10 @@ Guidelines:
 - If the exact definition is absent but the context gives enough operational
   evidence, provide an "Evidence-grounded synthesis" and explicitly say it is
   inferred from the provided context, not a quoted formal definition.
+- When ontology metadata or semantic links are present, use them to connect
+  specification behavior, Device Model components/variables, and JSON schema
+  payloads. Keep this source-aware trace explicit and distinguish it from
+  implementation synthesis.
 - For protocol message purpose, implementation guideline, or conformance-test
   questions, answer in a specification-review style with these sections when
   supported by context: Purpose, Normative behavior, Implementation guidance,
@@ -35,6 +39,27 @@ Source: {{ chunk.document_title or 'Unknown Document' }}
 {% if chunk.page_start %}, page {{ chunk.page_start }}{% endif %}
 {% if chunk.evidence_layer %}; Evidence layer: {{ chunk.evidence_layer }}{% endif %}
 {% if chunk.source_type %}; Source type: {{ chunk.source_type }}{% endif %}
+{% if chunk.graph_semantic_links %}
+Ontology links: {{ chunk.graph_semantic_links }}
+{% endif %}
+{% if chunk.graph_ontology_relations %}
+Ontology relations: {{ chunk.graph_ontology_relations|join(', ') }}
+{% endif %}
+{% if chunk.graph_ontology_rules %}
+Ontology mapping rules: {{ chunk.graph_ontology_rules|join(', ') }}
+{% endif %}
+{% if chunk.graph_ontology_versions %}
+Ontology versions: {{ chunk.graph_ontology_versions|join(', ') }}
+{% endif %}
+
+{% if chunk.semantic_links %}
+Semantic links:
+{% for link in chunk.semantic_links %}
+- {{ link.entity }} --{{ link.relation }}--> {{ link.related_entity }}
+  {% if link.mapping_rule %}rule: {{ link.mapping_rule }}{% endif %}
+  {% if link.ontology_version %}ontology: {{ link.ontology_version }}{% endif %}
+{% endfor %}
+{% endif %}
 
 {{ chunk.content }}
 
@@ -48,7 +73,10 @@ Answer with enough depth for implementation and conformance review; do not stop
 at a one-sentence summary.
 Cite sources in format: [Section Title](Document, page N) when a page is available,
 or [Section Title](Document) when the source has no page number.
-Include relevant entity names (commands, datatypes, variables, enums)."""
+Include relevant entity names (commands, datatypes, variables, enums).
+When evidence spans multiple layers, include a source-aware implementation trace:
+spec behavior -> Device Model component/variable -> JSON schema payload.
+If any trace link is missing from the retrieved context, state the missing link."""
 
 QUERY_TEMPLATE = jinja2.Template(QUERY_TEMPLATE_STR, trim_blocks=True, lstrip_blocks=True)
 
@@ -76,6 +104,8 @@ Hard output contract:
 - Do not number, rename, skip, or add top-level H2 headings.
 - If evidence is incomplete, keep the heading and state the gap there.
 - Cite retrieved section titles for concrete protocol claims.
+- When ontology metadata or semantic links are present, use them as traceability
+  hints. Do not treat ontology links as new normative requirements.
 - Do not invent fields, requirements, message names, or Device Model variables."""
 
 GOLDEN_ANSWER_TEMPLATE_STR = """## Context from OCPP 2.1 Knowledge Base
@@ -86,6 +116,26 @@ Source: {{ chunk.document_title or 'Unknown Document' }}
 {% if chunk.page_start %}, page {{ chunk.page_start }}{% endif %}
 {% if chunk.evidence_layer %}; Evidence layer: {{ chunk.evidence_layer }}{% endif %}
 {% if chunk.source_type %}; Source type: {{ chunk.source_type }}{% endif %}
+{% if chunk.graph_semantic_links %}
+Ontology links: {{ chunk.graph_semantic_links }}
+{% endif %}
+{% if chunk.graph_ontology_relations %}
+Ontology relations: {{ chunk.graph_ontology_relations|join(', ') }}
+{% endif %}
+{% if chunk.graph_ontology_rules %}
+Ontology mapping rules: {{ chunk.graph_ontology_rules|join(', ') }}
+{% endif %}
+{% if chunk.graph_ontology_versions %}
+Ontology versions: {{ chunk.graph_ontology_versions|join(', ') }}
+{% endif %}
+{% if chunk.semantic_links %}
+Semantic links:
+{% for link in chunk.semantic_links %}
+- {{ link.entity }} --{{ link.relation }}--> {{ link.related_entity }}
+  {% if link.mapping_rule %}rule: {{ link.mapping_rule }}{% endif %}
+  {% if link.ontology_version %}ontology: {{ link.ontology_version }}{% endif %}
+{% endfor %}
+{% endif %}
 
 {{ chunk.content }}
 
@@ -104,6 +154,9 @@ Device Model dependencies.
 {% elif heading == "Implementation guidance" %}
 Give senior backend guidance for validation, persistence, state transitions,
 error handling, and integration sequencing.
+When supported by context, include an ontology-aware trace bullet in this section
+using the shape: spec behavior -> Device Model component/variable -> JSON schema
+payload. If one side of that trace is missing, state the missing link.
 {% elif heading == "Conformance-test focus" %}
 List concrete positive and negative tests, including schema validation and
 unsupported-capability paths.
@@ -121,6 +174,9 @@ Final check before responding:
 - Every required heading has substantive content.
 - The answer contains source citations such as [Section Title](Document, page N)
   or [Section Title](Document).
+- If ontology metadata or semantic links are present, the Implementation
+  guidance section uses them for traceability without adding unsupported
+  normative claims.
 """
 
 GOLDEN_ANSWER_TEMPLATE = jinja2.Template(

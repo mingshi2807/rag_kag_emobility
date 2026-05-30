@@ -95,7 +95,8 @@ The command exits with status `2` when the suite fails. This is intended for CI 
 
 Candidate metrics can be non-zero while final graph chunks are zero. That means
 ontology-aware graph retrieval contributed candidates, but vector/keyword/rerank
-evidence won the final top-k.
+evidence won the final top-k. When final graph chunks are present, generation
+prompts receive ontology metadata so answers can build source-aware traces.
 
 ## Golden Answer Evaluation
 
@@ -147,3 +148,14 @@ The answer gate checks:
 - Optional implementation-quality terms.
 - Markdown structure and source-citation shape.
 - Refusal or missing-context phrases that indicate the generated answer did not use the retrieved evidence.
+
+Generation prompts now expose ontology link counts, relation types, mapping
+rules, ontology versions, and semantic links when retrieval provides them. The
+strict golden-answer prompt asks the Implementation guidance section to include
+an ontology-aware trace when supported by context:
+
+```text
+spec behavior -> Device Model component/variable -> JSON schema payload
+```
+
+Ontology links are traceability hints, not standalone normative requirements.

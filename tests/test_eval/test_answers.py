@@ -9,7 +9,7 @@ from rag_ocpp.eval.answers import (
     generation_query_for,
     score_answer,
 )
-from rag_ocpp.generation.prompt import render_golden_answer_messages
+from rag_ocpp.generation.prompt import render_generation_messages, render_golden_answer_messages
 
 
 def test_default_golden_answer_cases_cover_fusion_topics():
@@ -120,6 +120,64 @@ def test_render_golden_answer_messages_enforces_template_contract():
     assert messages[1]["content"].count("## Purpose") == 1
     assert messages[1]["content"].count("## Evidence gaps") == 1
     assert "The only H2 headings are exactly" in messages[1]["content"]
+
+
+def test_render_generation_messages_exposes_ontology_trace_metadata():
+    messages = render_generation_messages(
+        "Build DER implementation guidance.",
+        [
+            {
+                "content": "DCDERCtrlr exposes DER control capability.",
+                "section_title": "DCDERCtrlr / Enabled / no",
+                "document_title": "device-model.csv",
+                "evidence_layer": "device_model",
+                "source_type": "device_model_table",
+                "graph_semantic_links": 5,
+                "graph_ontology_relations": ["component_has_variable"],
+                "graph_ontology_rules": ["dm_component_variable"],
+                "graph_ontology_versions": ["ocpp21-ed2-v1"],
+            }
+        ],
+    )
+
+    assert "spec behavior -> Device Model component/variable -> JSON schema payload" in (
+        messages[1]["content"]
+    )
+    assert "Ontology links: 5" in messages[1]["content"]
+    assert "component_has_variable" in messages[1]["content"]
+    assert "dm_component_variable" in messages[1]["content"]
+
+
+def test_render_golden_answer_messages_requests_ontology_trace_when_available():
+    case = filter_answer_cases(default_golden_answer_cases(), topics=["DER"])[0]
+    messages = render_golden_answer_messages(
+        case.query,
+        [
+            {
+                "content": "DCDERCtrlr maps to DER variables.",
+                "section_title": "DCDERCtrlr",
+                "document_title": "device-model.csv",
+                "evidence_layer": "device_model",
+                "source_type": "device_model_table",
+                "semantic_links": [
+                    {
+                        "entity": "DCDERCtrlr",
+                        "relation": "component_has_variable",
+                        "related_entity": "Enabled",
+                        "mapping_rule": "dm_component_variable",
+                        "ontology_version": "ocpp21-ed2-v1",
+                    }
+                ],
+            }
+        ],
+        required_headings=case.required_headings,
+        required_terms=case.required_terms,
+        optional_terms=case.optional_terms,
+    )
+
+    assert "Semantic links:" in messages[1]["content"]
+    assert "DCDERCtrlr --component_has_variable--> Enabled" in messages[1]["content"]
+    assert "ontology-aware trace bullet" in messages[1]["content"]
 
 
 def test_build_answer_report_fails_if_any_case_fails():

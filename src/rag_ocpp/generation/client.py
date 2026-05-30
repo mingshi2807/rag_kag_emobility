@@ -156,6 +156,14 @@ class DeepSeekClient:
                 "page_end": c.page_end,
                 "evidence_layer": (c.metadata or {}).get("evidence_layer"),
                 "source_type": (c.metadata or {}).get("source_type"),
+                "graph_semantic_links": (c.metadata or {}).get("graph_semantic_links"),
+                "graph_ontology_relations": (c.metadata or {}).get(
+                    "graph_ontology_relations"
+                ),
+                "graph_ontology_rules": (c.metadata or {}).get("graph_ontology_rules"),
+                "graph_ontology_versions": (c.metadata or {}).get(
+                    "graph_ontology_versions"
+                ),
             }
             for c in retrieval_result.chunks
         ]

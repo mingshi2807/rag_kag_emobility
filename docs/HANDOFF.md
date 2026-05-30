@@ -1,7 +1,7 @@
 # Handoff: RAG-KAG-OCPP Repository Control
 
 **Date:** 2026-05-30
-**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals with ontology metrics, source-aware ontology graph promotion for fusion retrieval, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, ontology-aware graph retrieval, ontology provenance in API/MCP evidence packs, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
+**Control status:** OCPP 2.1 Ed2 source-aware corpus, full embedded index, project-local skills, upgraded MCP evidence tools, retrieval quality evals with ontology metrics, source-aware ontology graph promotion for fusion retrieval, ontology-aware generation prompts, golden generated-answer evals, repaired retrieval integration tests, configurable redacted logging, privacy-preserving audit events, explicit DB migrations, lightweight source-aware ontology catalog, ontology-aware graph retrieval, ontology provenance in API/MCP evidence packs, upgraded FastAPI query/search contracts, admin-controlled API mutation endpoints, dedicated source-aware corpus API endpoints, shared API/CLI/MCP corpus status contract tests, and v0.3.0 release prep are implemented. Root `AGENTS.md` defines agent operating rules. Enterprise audit is captured in `docs/AUDIT_REPORT.md`.
 **Current conclusion:** The project now has a first-class corpus record layer for Part 2 spec, Device Model tables, and JSON schemas, plus ontology-governed graph relation semantics, ontology-aware traversal/scoring, agent-facing MCP tools with semantic-link provenance, repeatable R/Q/K retrieval and generated-answer gates, a migration ledger for controlled schema setup, admin-controlled corpus API operations, shared corpus status counts across API/CLI/MCP, OpenAPI 3.0.3 API reference output at version `0.3.0`, and curl/Postman smoke-test documentation. It is still not enterprise-ready until source access controls, retention/deletion policy, CI wiring, and broader integration tests are complete.
 
 ## Mission
@@ -45,6 +45,7 @@ Query -> vector + keyword + graph retrieval
 - `docs/query_quality_eval.md` documents `rag eval-quality` and `rag eval-answers` gates for Section R DER, Section Q V2X, and Section K smart charging, including ontology graph candidate metrics.
 - `reports/ocpp21-ed2-rqk-quality-baseline.md` records a 12-case retrieval baseline: `12/12` passed, score `0.976`.
 - `reports/ocpp21-ed2-rqk-quality-ontology-aware-retrieval.md` records the ontology-aware graph retrieval gate with ontology metrics: `12/12` passed, score `0.976`, `30` graph candidate chunks, `134` graph candidate semantic links, `3` final graph chunks, max traversal depth `0`.
+- `src/rag_ocpp/generation/prompt.py` and `src/rag_ocpp/generation/client.py` now pass ontology link counts, relation types, mapping rules, versions, and semantic links into generation prompts so implementation answers can trace `spec behavior -> Device Model component/variable -> JSON schema payload` when evidence supports it.
 - `reports/ocpp21-ed2-rqk-golden-answers.md` records a 3-case generated Markdown answer baseline: `3/3` passed, score `1.000`.
 - `reports/golden_answers/` stores the generated DER, V2X, and Smart Charging Markdown answers that can be rescored without another LLM call.
 - `reports/ocpp21-ed2-rqk-golden-answers-codex-only.md` records a Codex-authored, MCP-evidence-assisted 3-case generated-answer benchmark: `3/3` passed, score `1.000`.
@@ -70,14 +71,13 @@ Query -> vector + keyword + graph retrieval
 
 ## Ordered Next Actions
 
-1. Improve the generation prompt so Markdown answers explicitly use ontology links as `spec behavior -> Device Model component/variable -> JSON schema payload` implementation traces.
-2. Add golden-answer scoring criteria for ontology usage, including source-layer traceability and missing-link disclosure.
-3. Finish API/CLI/MCP generated-answer parity with the golden-answer citation and Markdown contract.
-4. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
-5. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
-6. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
-7. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
-8. Add API/MCP read-only ontology inspection endpoints once the ontology model stabilizes.
+1. Add golden-answer scoring criteria for ontology usage, including source-layer traceability and missing-link disclosure.
+2. Finish API/CLI/MCP generated-answer parity with the golden-answer citation and Markdown contract.
+3. Extend private-knowledge controls beyond redaction/audit events: source access model, retention/deletion policy, and secret-handling documentation.
+4. Extend eval coverage beyond R/Q/K into BootNotification, Device Model reporting, transactions, security, and firmware/diagnostics.
+5. Add operational runbooks for ingestion, re-embedding, eval, rollback, backup, restore, and migration rollback policy.
+6. Wire `rag eval-quality` and `rag eval-answers` into CI when CI/model/API assumptions are ready.
+7. Add API/MCP read-only ontology inspection endpoints once the ontology model stabilizes.
 
 ## Verification Commands
 
